@@ -1,3 +1,4 @@
 @echo off
-cd /d "%~dp0dist"
-start "" "DiabloTranslator.exe"
+setlocal
+cd /d "%~dp0.."
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch_app.ps1"

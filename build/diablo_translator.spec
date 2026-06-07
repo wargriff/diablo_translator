@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
-project_root = Path(SPECPATH).resolve().parent
+spec_dir = Path(SPECPATH).resolve()
+project_root = spec_dir.parent
+icon_path = project_root / "assets" / "icons" / "app.ico"
+version_path = project_root / "build" / "version_info.txt"
 
 a = Analysis(
     [str(project_root / "launcher.py")],
@@ -52,5 +55,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(project_root / "assets" / "icons" / "app.ico"),
+    icon=str(icon_path) if icon_path.exists() else None,
+    version=str(version_path) if version_path.exists() else None,
 )

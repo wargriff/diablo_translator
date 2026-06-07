@@ -235,6 +235,16 @@ Oui, via **OCR** sur la zone chat affichée à l'écran (pas d'injection mémoir
 **DeepL ne fonctionne pas ?**  
 Vérifiez `DEEPL_API_KEY` dans `.env` ou les paramètres. Sans clé, Google est utilisé automatiquement.
 
+**Windows bloque l'exécutable (Contrôle intelligent des applications) ?**  
+C'est normal pour un `.exe` non signé. Utilisez le raccourci bureau ou `build/Lancer Diablo Translator.bat` : le script débloque le fichier et bascule automatiquement sur Python si Windows refuse l'exe. Vous pouvez aussi désactiver le Contrôle intelligent dans **Sécurité Windows → Contrôle des applications et du navigateur**.
+
+**L'icône est floue ?**  
+Regénérez l'icône HD puis le raccourci :
+```powershell
+python assets/icons/generate_app_icon.py
+powershell -ExecutionPolicy Bypass -File build/create_desktop_shortcut.ps1
+```
+
 **Le micro ne répond pas ?**  
 Installez `pyaudio` et autorisez l'accès micro dans Windows.
 

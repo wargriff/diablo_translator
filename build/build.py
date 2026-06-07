@@ -11,6 +11,14 @@ PROJECT_ROOT = BUILD_DIR.parent
 
 
 def main() -> int:
+    icon_script = PROJECT_ROOT / "assets" / "icons" / "generate_app_icon.py"
+    if icon_script.exists():
+        print("Generation de l'icone HD...")
+        icon_result = subprocess.run([sys.executable, str(icon_script)], cwd=PROJECT_ROOT)
+        if icon_result.returncode != 0:
+            print("Echec generation icone.")
+            return icon_result.returncode
+
     spec = BUILD_DIR / "diablo_translator.spec"
     command = [
         sys.executable,
