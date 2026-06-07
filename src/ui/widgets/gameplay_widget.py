@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QFrame,
@@ -47,11 +47,12 @@ class GameplayWidget(QWidget):
 
         self.chat_input = QLineEdit()
         self.chat_input.setPlaceholderText(
-            "Tapez un message de chat pour tester la traduction..."
+            "Tapez un message… Ctrl+Entrée pour traduire (Entrée ne valide plus)"
         )
-        self.chat_input.returnPressed.connect(self.translate_chat_message)
+        self.chat_input.installEventFilter(self)
 
         self._voice_busy = False
+        self._shortcuts: list[QShortcut] = []
 
         self.translate_button = QPushButton(" Traduire")
         self.translate_button.setObjectName("PrimaryButton")
@@ -61,7 +62,7 @@ class GameplayWidget(QWidget):
 
         self.voice_button = QPushButton(" Micro")
         self.voice_button.setIcon(AssetManager.icon("mic"))
-        self.voice_button.setToolTip("Activer/désactiver le micro (Ctrl+M)")
+        self.voice_button.setToolTip("Activer/désactiver le micro (Ctrl+Shift+M)")
         self.voice_button.clicked.connect(self.toggle_voice_input)
 
         self.start_button = QPushButton(" Surveiller chat")
@@ -70,7 +71,7 @@ class GameplayWidget(QWidget):
         self.stop_button = QPushButton(" Arrêter")
         self.stop_button.setIcon(AssetManager.icon("stop"))
         self.refresh_button = QPushButton(" Actualiser")
-        self.refresh_button.setToolTip("Actualiser l'état des jeux (F5)")
+        self.refresh_button.setToolTip("Actualiser l'état des jeux (Ctrl+Shift+R)")
 
         self.last_translation_label = QLabel("Dernière traduction : en attente...")
         self.last_translation_label.setObjectName("MutedText")
@@ -133,17 +134,34 @@ class GameplayWidget(QWidget):
         )
 
     def _setup_shortcuts(self) -> None:
+        # Raccourcis actifs seulement hors champs de saisie (WidgetShortcut).
         translate_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
-        translate_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        translate_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
         translate_shortcut.activated.connect(self.translate_chat_message)
+        self._shortcuts.append(translate_shortcut)
 
-        voice_shortcut = QShortcut(QKeySequence("Ctrl+M"), self)
-        voice_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        voice_shortcut = QShortcut(QKeySequence("Ctrl+Shift+M"), self)
+        voice_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
         voice_shortcut.activated.connect(self.toggle_voice_input)
+        self._shortcuts.append(voice_shortcut)
 
-        refresh_shortcut = QShortcut(QKeySequence("F5"), self)
-        refresh_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        refresh_shortcut = QShortcut(QKeySequence("Ctrl+Shift+R"), self)
+        refresh_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
         refresh_shortcut.activated.connect(self.refresh_game_status)
+        self._shortcuts.append(refresh_shortcut)
+
+    def eventFilter(self, obj, event) -> bool:
+        if obj is self.chat_input and event.type() == QEvent.Type.KeyPress:
+            key = event.key()
+            modifiers = event.modifiers()
+
+            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                if modifiers & Qt.KeyboardModifier.ControlModifier:
+                    self.translate_chat_message()
+                    return True
+                return False
+
+        return super().eventFilter(obj, event)
 
     @staticmethod
     def _section_title(text: str) -> QLabel:

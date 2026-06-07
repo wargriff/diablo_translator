@@ -121,7 +121,6 @@ class MainWindow(QMainWindow):
             "Traduire",
             self,
         )
-        translate_action.setShortcut("Ctrl+Return")
         translate_action.triggered.connect(self.gameplay_widget.translate_chat_message)
         toolbar.addAction(translate_action)
 
@@ -218,7 +217,8 @@ class MainWindow(QMainWindow):
             "• Toujours devant le jeu (sans Alt+Entrée)\n"
             "• Surveillance chat automatique\n"
             "• Opacité réglable dans Paramètres → Overlay\n\n"
-            "Raccourcis : Ctrl+Entrée · Ctrl+M · F5"
+            "Raccourcis (hors champ de saisie) : Ctrl+Shift+M · Ctrl+Shift+R\n"
+            "Dans le champ chat : Ctrl+Entrée pour traduire"
         )
         intro.setWordWrap(True)
         intro.setObjectName("MutedText")

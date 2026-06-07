@@ -77,6 +77,8 @@ python launcher.py
 
 ```bash
 pip install -r requirements.txt
+pip install -r requirements-voice.txt   # micro (PyAudio, optionnel)
+python build/install_dependencies.py    # tout installer + verification
 ```
 
 Pour l'entrée vocale (optionnel) :
@@ -139,9 +141,11 @@ python launcher.py gui
 
 | Raccourci | Action |
 |-----------|--------|
-| `Ctrl + Entrée` | Traduire le message saisi |
-| `Ctrl + M` | Activer / désactiver le micro |
-| `F5` | Actualiser l'état des jeux |
+| `Ctrl + Entrée` | Traduire le message (dans le champ chat ou hors saisie) |
+| `Ctrl + Shift + M` | Activer / désactiver le micro (hors champ de saisie) |
+| `Ctrl + Shift + R` | Actualiser l'état des jeux (hors champ de saisie) |
+
+Dans le champ chat, **Entrée seule ne traduit plus** — vous pouvez taper librement.
 
 ### Ligne de commande
 
