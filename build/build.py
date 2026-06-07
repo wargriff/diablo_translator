@@ -86,6 +86,9 @@ def _run_pre_build(*, run_tests: bool) -> int:
     _print_phase("PHASE 1 — Controles pre-build")
     _ensure_import_path()
     from build.checks.pre_build import run_pre_build_checks
+    from src.ocr.easyocr_patch import apply_easyocr_corrupt_msg_patch
+
+    apply_easyocr_corrupt_msg_patch()
 
     ok, results = run_pre_build_checks(
         PROJECT_ROOT,

@@ -6,6 +6,7 @@ from typing import Any
 from src.infrastructure.paths import CACHE_OCR_DIR, MODELS_DIR, ensure_project_dirs
 from src.ocr.chat_image_preprocessor import ChatImagePreprocessor
 from src.ocr.easyocr_languages import split_easyocr_language_groups
+from src.ocr.easyocr_patch import apply_easyocr_corrupt_msg_patch
 
 
 class OCRService:
@@ -29,6 +30,7 @@ class OCRService:
         self._cyrillic_reader = None
 
     def _create_reader(self, lang_list: tuple[str, ...]) -> Any:
+        apply_easyocr_corrupt_msg_patch()
         import easyocr
 
         return easyocr.Reader(
