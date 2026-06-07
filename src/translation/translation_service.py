@@ -62,7 +62,7 @@ class TranslationService:
             return TranslationResult(
                 source_text=cleaned,
                 translated_text=cleaned,
-                source_language=self._language_detector.detect(cleaned),
+                source_language=self.detect_language(cleaned, origin=origin),
                 target_language=home,
                 provider=self._provider.name,
                 skipped=True,
@@ -71,7 +71,10 @@ class TranslationService:
 
         source_language = None
         if self._config.auto_detect_language:
-            source_language = self._language_detector.detect(cleaned)
+            source_language = self.detect_language(cleaned, origin=origin)
+
+        if origin == "chat" and not source_language and cleaned.isascii():
+            source_language = self._config.default_reply_language
 
         target_language = self._resolve_target(source_language, origin, home)
 
@@ -105,6 +108,9 @@ class TranslationService:
             target_language=target_language,
         )
 
+        if origin == "chat" and not self.is_home_language(source_language):
+            self._conversation.remember_foreign(source_language, home)
+
         return TranslationResult(
             source_text=cleaned,
             translated_text=translated,
@@ -112,6 +118,7 @@ class TranslationService:
             target_language=target_language,
             provider=self._provider.name,
             outgoing=origin in {"user", "voice"},
+            incoming=origin == "chat",
         )
 
     def _resolve_target(
@@ -135,10 +142,12 @@ class TranslationService:
         if self._language_detector.is_same_language(source_language, home):
             return home
 
-        self._conversation.remember_foreign(source_language, home)
         return home
 
-    def detect_language(self, text: str) -> str | None:
+    def detect_language(self, text: str, *, origin: str = "chat") -> str | None:
+        home = normalize_language(self._config.language) or "fr"
+        if origin == "chat":
+            return self._language_detector.detect_for_chat(text, home)
         return self._language_detector.detect(text)
 
     def language_display_name(self, code: str | None) -> str:
@@ -149,3 +158,13 @@ class TranslationService:
             language_code,
             self._config.language,
         )
+
+    def reply_language(self) -> str:
+        peer = (
+            self._conversation.last_foreign_language
+            or self._config.default_reply_language
+        )
+        return normalize_language(peer) or "en"
+
+    def reply_language_label(self) -> str:
+        return self.language_display_name(self.reply_language())

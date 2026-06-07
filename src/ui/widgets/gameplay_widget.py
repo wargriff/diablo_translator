@@ -47,7 +47,7 @@ class GameplayWidget(QWidget):
 
         self.chat_input = QLineEdit()
         self.chat_input.setPlaceholderText(
-            "Tapez un message… Ctrl+Entrée pour traduire (Entrée ne valide plus)"
+            "Écrivez en français → traduction auto vers la langue du chat (Ctrl+Entrée)"
         )
         self.chat_input.installEventFilter(self)
 
@@ -129,8 +129,9 @@ class GameplayWidget(QWidget):
         self.refresh_game_status()
         self._refresh_provider_label()
         self._append_system_message(
-            "Interface prête. Le chat du jeu est lu en direct via OCR "
-            "sur la zone inférieure gauche."
+            "Chat auto : message étranger → traduction FR affichée ici. "
+            "Vous écrivez en français → traduction vers la langue du joueur "
+            f"({self.container.pipeline.translator.reply_language_label()} par défaut)."
         )
 
     def _setup_shortcuts(self) -> None:
@@ -257,42 +258,54 @@ class GameplayWidget(QWidget):
         *,
         speaker: str = "Chat",
     ) -> None:
-        source_lang = self.container.pipeline.translator.language_display_name(
-            result.source_language
-        )
-        provider = result.provider.upper()
-
-        self._append_chat_line(speaker, result.source_text, "#c9a24d")
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        translator = self.container.pipeline.translator
 
         if result.preserved_mixed:
-            self._append_chat_line(
-                "Info",
-                "Mixte FR/EN conservé tel quel",
-                "#8a8278",
-            )
-        elif result.skipped:
-            self._append_chat_line(
-                "Info",
-                f"Déjà en {source_lang} — traduction ignorée",
-                "#8a8278",
-            )
-        else:
-            source_name = self.container.pipeline.translator.language_display_name(
-                result.source_language
-            )
-            target_name = self.container.pipeline.translator.language_display_name(
-                result.target_language
-            )
-            label = "Réponse" if result.outgoing else "Traduction"
-            self._append_chat_line(
-                label,
-                f"{result.translated_text} [{source_name} → {target_name} · {provider}]",
-                "#7cb342" if not result.outgoing else "#64b5f6",
-            )
+            self._append_chat_line(speaker, result.source_text, "#e8dcc8")
+            return
 
-        self.last_translation_label.setText(
-            f"Dernière traduction : {result.source_text} → {result.display_text}"
+        if result.skipped:
+            if result.outgoing:
+                source_lang = translator.language_display_name(result.source_language)
+                self._append_chat_line(
+                    "Info",
+                    f"Déjà en {source_lang} — rien à traduire",
+                    "#8a8278",
+                )
+            return
+
+        if result.outgoing:
+            target_label = translator.language_display_name(result.target_language)
+            self._append_chat_html(
+                f'<span style="color:#6b5f52;">[{timestamp}]</span> '
+                f'<span style="color:#64b5f6;font-weight:700;">[Vous → {target_label}]</span> '
+                f'<span style="color:#ffffff;font-size:105%;">'
+                f'{self._escape_html(result.translated_text)}</span><br/>'
+                f'<span style="color:#6b5f52;font-size:92%;">'
+                f'{self._escape_html(result.source_text)}</span>'
+            )
+            self._copy_to_clipboard(result.translated_text)
+            self.last_translation_label.setText(
+                f"Réponse à coller en {target_label} : {result.translated_text}"
+            )
+            self._refresh_provider_label()
+            return
+
+        source_label = translator.language_display_name(result.source_language)
+        self._append_chat_html(
+            f'<span style="color:#6b5f52;">[{timestamp}]</span> '
+            f'<span style="color:#7cb342;font-weight:700;">[Chat FR]</span> '
+            f'<span style="color:#ffffff;font-size:105%;">'
+            f'{self._escape_html(result.translated_text)}</span><br/>'
+            f'<span style="color:#6b5f52;font-size:92%;">'
+            f'{self._escape_html(result.source_text)} '
+            f'({source_label})</span>'
         )
+        self.last_translation_label.setText(
+            f"Dernier message : {result.source_text} → {result.translated_text}"
+        )
+        self._refresh_provider_label()
 
     def show_live_translation(self, result: TranslationResult) -> None:
         self.display_translation_result(result, speaker="Chat jeu")
@@ -322,8 +335,9 @@ class GameplayWidget(QWidget):
             else "OCR plein écran"
         )
         self.monitor_info_label.setText(
-            f"Mode : {monitor_mode} · Moteur : {self.container.config.translator.upper()} · "
-            f"Détection langue : {'ON' if self.container.config.auto_detect_language else 'OFF'}"
+            f"Mode : {monitor_mode} · Chat étranger → FR · "
+            f"Vos réponses FR → {self.container.pipeline.translator.reply_language_label()} · "
+            f"Détection : {'ON' if self.container.config.auto_detect_language else 'OFF'}"
         )
 
         if self.worker.is_running and status.is_any_running:
@@ -335,17 +349,18 @@ class GameplayWidget(QWidget):
 
     def _refresh_provider_label(self) -> None:
         provider = self.container.pipeline.translator.provider_name.upper()
-        target = self.container.config.language.upper()
         cache = self.container.pipeline.cache.stats
+        reply_label = self.container.pipeline.translator.reply_language_label()
         peer = self.container.pipeline.conversation.last_foreign_language
-        peer_text = (
-            f" · Réponse auto : {peer.upper()}"
-            if peer and self.container.config.bidirectional_mode
-            else ""
+        mode = (
+            f"Chat → FR · Vous → {reply_label}"
+            if self.container.config.bidirectional_mode
+            else f"Langue cible : {self.container.config.language.upper()}"
         )
+        if peer:
+            mode += f" (dernier chat : {self.container.pipeline.translator.language_display_name(peer)})"
         self.provider_label.setText(
-            f"Moteur : {provider} · Langue maison : {target}{peer_text} · "
-            f"Cache disque : {cache.entries} entrées"
+            f"{mode} · Moteur : {provider} · Cache : {cache.entries} entrées"
         )
 
     def _notify_status_update(self) -> None:
@@ -354,11 +369,24 @@ class GameplayWidget(QWidget):
 
     def _append_chat_line(self, speaker: str, message: str, color: str) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
-        self.chat_log.append(
+        self._append_chat_html(
             f'<span style="color:#6b5f52;">[{timestamp}]</span> '
             f'<span style="color:{color}; font-weight:600;">[{speaker}]</span> '
             f'<span style="color:#e8dcc8;">{self._escape_html(message)}</span>'
         )
+
+    def _append_chat_html(self, html: str) -> None:
+        self.chat_log.append(html)
+        scrollbar = self.chat_log.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+
+    def _copy_to_clipboard(self, text: str) -> None:
+        try:
+            import pyperclip
+
+            pyperclip.copy(text)
+        except Exception:
+            pass
 
     def _append_system_message(self, message: str) -> None:
         self._append_chat_line("Système", message, "#8a8278")

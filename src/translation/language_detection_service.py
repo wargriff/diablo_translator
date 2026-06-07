@@ -31,6 +31,8 @@ class LanguageDetectionService:
         " bg ",
         " ouf ",
         " chez ",
+        " merci ",
+        " salut ",
     )
     _ENGLISH_MARKERS = (
         " the ",
@@ -44,6 +46,33 @@ class LanguageDetectionService:
         " ok ",
         " pls ",
         " thx ",
+        " looking ",
+        " group ",
+        " party ",
+        " join ",
+        " need ",
+        " help ",
+    )
+
+    _FRENCH_WORDS = re.compile(
+        r"\b(je|tu|il|elle|nous|vous|les|des|une|pour|avec|pas|qui|est|dans|sur|"
+        r"merci|bonjour|salut|oui|non|chez|fais|fait|veux|peux|peut|groupe|partie|"
+        r"niveau|quoi|comment|bien|trop|aussi|mais|donc|chez|join|jai|j'ai)\b",
+        re.I,
+    )
+    _ENGLISH_WORDS = re.compile(
+        r"\b(the|and|for|you|your|need|looking|group|party|join|help|please|thanks|"
+        r"hello|hi|yes|no|want|can|any|one|all|good|game|run|lvl|level|farm|trade|"
+        r"wtb|wts|lfm|lfg|bro|team|ready|wait|go|stop|nice|well|done|anyone|someone)\b",
+        re.I,
+    )
+    _GERMAN_WORDS = re.compile(
+        r"\b(der|die|das|und|ich|wir|ihr|nicht|mit|für|auch|bin|suche|gruppe)\b",
+        re.I,
+    )
+    _SPANISH_WORDS = re.compile(
+        r"\b(el|la|los|las|que|por|para|con|grupo|busco|hola|si|no|puedo)\b",
+        re.I,
     )
 
     def detect(self, text: str) -> str | None:
@@ -58,6 +87,50 @@ class LanguageDetectionService:
             return detect(cleaned)
         except Exception:
             return None
+
+    def detect_for_chat(self, text: str, home_language: str = "fr") -> str | None:
+        cleaned = text.strip()
+        if len(cleaned) < 2:
+            return None
+
+        if re.search(r"[àâäéèêëïîôùûüç]", cleaned, re.I):
+            return "fr"
+
+        heuristic = self._heuristic_language(cleaned)
+        if heuristic:
+            return heuristic
+
+        detected = self.detect(cleaned)
+        if detected:
+            return detected
+
+        if cleaned.isascii() and len(cleaned) >= 3:
+            home = home_language.lower()
+            if home != "en":
+                return "en"
+
+        return None
+
+    def _heuristic_language(self, text: str) -> str | None:
+        scores = {
+            "fr": len(self._FRENCH_WORDS.findall(text)),
+            "en": len(self._ENGLISH_WORDS.findall(text)),
+            "de": len(self._GERMAN_WORDS.findall(text)),
+            "es": len(self._SPANISH_WORDS.findall(text)),
+        }
+        best_lang, best_score = max(scores.items(), key=lambda item: item[1])
+        if best_score == 0:
+            return None
+
+        sorted_scores = sorted(scores.values(), reverse=True)
+        if len(sorted_scores) > 1 and sorted_scores[0] == sorted_scores[1]:
+            padded = f" {text.lower()} "
+            if any(marker in padded for marker self._FRENCH_MARKERS):
+                return "fr"
+            if any(marker in padded for marker in self._ENGLISH_MARKERS):
+                return "en"
+
+        return best_lang
 
     def is_mixed_language(self, text: str) -> bool:
         cleaned = text.strip()
@@ -87,7 +160,9 @@ class LanguageDetectionService:
         ):
             return True
 
-        return False
+        fr_score = len(self._FRENCH_WORDS.findall(cleaned))
+        en_score = len(self._ENGLISH_WORDS.findall(cleaned))
+        return fr_score >= 1 and en_score >= 1
 
     def display_name(self, language_code: str | None) -> str:
         if not language_code:

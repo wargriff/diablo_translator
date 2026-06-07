@@ -42,8 +42,8 @@ class TranslationPipeline:
 
         cached = self.cache.get(source_text, preview_target, provider)
         if cached:
-            detected = self.translator.detect_language(source_text)
-            if origin == "chat" and detected:
+            detected = self.translator.detect_language(source_text, origin=origin)
+            if origin == "chat" and detected and not self.translator.is_home_language(detected):
                 self.conversation.remember_foreign(
                     detected,
                     self._config.language,
@@ -55,6 +55,7 @@ class TranslationPipeline:
                 target_language=preview_target,
                 provider=provider,
                 outgoing=origin in {"user", "voice"},
+                incoming=origin == "chat",
             )
 
         result = self.translator.translate(source_text, origin=origin)
@@ -96,12 +97,9 @@ class TranslationPipeline:
             return home
 
         if origin in {"user", "voice"}:
-            detected = self.translator.detect_language(source_text)
+            detected = self.translator.detect_language(source_text, origin=origin)
             if self.translator.is_home_language(detected):
-                return (
-                    self.conversation.last_foreign_language
-                    or self._config.default_reply_language
-                )
+                return self.translator.reply_language()
             return home
 
         return home
