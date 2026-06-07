@@ -1,6 +1,5 @@
 import sys
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
 from src.infrastructure import LoggerManager
@@ -21,7 +20,6 @@ class Application:
         app = QApplication(sys.argv)
         app.setApplicationName("Diablo Translator")
         app.setOrganizationName("DiabloTranslator")
-        app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
 
         AssetManager.prepare()
         app.setWindowIcon(AssetManager.app_icon())
