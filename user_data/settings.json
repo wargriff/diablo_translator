@@ -1,0 +1,9 @@
+{
+    "language": "fr",
+    "overlay_enabled": true,
+    "overlay_opacity": 0.85,
+    "capture_fps": 2,
+    "translator": "google",
+    "ocr_engine": "easyocr",
+    "low_cpu_mode": false
+}
