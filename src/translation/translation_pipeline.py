@@ -16,13 +16,14 @@ class TranslationPipeline:
         self._config = config or ConfigManager.load()
         self.ocr = OCRService(self._parse_ocr_languages(self._config.ocr_languages))
         self.translator = TranslationService(self._config)
-        self.cache = TranslationCache()
+        self.cache = TranslationCache(max_entries=self._config.cache_max_entries)
         self.history = HistoryService()
 
     def reload(self, config: AppConfig) -> None:
         self._config = config
         self.ocr.reload(self._parse_ocr_languages(config.ocr_languages))
         self.translator.reload(config)
+        self.cache = TranslationCache(max_entries=config.cache_max_entries)
 
     def process_text(self, source_text: str) -> TranslationResult:
         provider = self.translator.provider_name

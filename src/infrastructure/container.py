@@ -18,6 +18,7 @@ class Container:
         self.config = ConfigManager.load()
         self.capture = CaptureService()
         self.pipeline = TranslationPipeline(self.config)
+        self.cache = self.pipeline.cache
         self.game_detection = GameDetectionService()
         self.chat_monitor = ChatMonitorService()
         self.analytics = AnalyticsService()
@@ -34,7 +35,8 @@ class Container:
 
     def apply_config(self, config: AppConfig) -> None:
         self.config = config
-        self.pipeline.reload(config)
+        self.pipeline = TranslationPipeline(config)
+        self.cache = self.pipeline.cache
         self._configure_speech_input()
 
     def set_translation_listener(self, callback) -> None:
@@ -44,6 +46,10 @@ class Container:
         self._voice_listener = callback
 
     def _configure_speech_input(self) -> None:
+        if self.config.voice_language and self.config.voice_language != "auto":
+            self.speech_input._language = self.config.voice_language
+            return
+
         speech_map = {
             "fr": "fr-FR",
             "en": "en-US",

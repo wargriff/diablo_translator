@@ -9,18 +9,34 @@ class AppConfig:
 
     language: str = "fr"
     overlay_enabled: bool = True
-    overlay_opacity: float = 0.85
+    overlay_opacity: float = 0.88
+    overlay_compact: bool = True
+    overlay_position: str = "top_right"
+    overlay_width: int = 460
+    overlay_height: int = 560
+    overlay_margin: int = 16
+    overlay_borderless: bool = False
+    overlay_click_through: bool = False
+    always_on_top: bool = True
+    show_only_gameplay_tab: bool = True
+    auto_raise_on_game: bool = True
+    auto_start_monitor: bool = True
     capture_fps: int = 2
     translator: str = "google"
     deepl_api_key: str = ""
     ocr_engine: str = "easyocr"
     ocr_languages: str = "en,fr,de,es"
+    ocr_confidence_min: float = 0.35
     low_cpu_mode: bool = False
     auto_detect_language: bool = True
     chat_monitor_enabled: bool = True
     chat_region_preset: str = "auto"
     voice_input_enabled: bool = False
     speak_translation: bool = False
+    voice_language: str = "auto"
+    ui_font_size: int = 11
+    cache_max_entries: int = 5000
+    min_text_length: int = 2
 
 
 class ConfigManager:

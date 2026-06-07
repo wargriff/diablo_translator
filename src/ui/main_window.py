@@ -1,5 +1,5 @@
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -17,6 +17,7 @@ from src.infrastructure import LoggerManager
 from src.infrastructure.asset_manager import AssetManager
 from src.infrastructure.container import Container
 from src.ui.dialogs import SettingsDialog
+from src.ui.services import WindowBehaviorService
 from src.ui.theme import apply as apply_theme
 from src.ui.widgets.gameplay_widget import GameplayWidget
 from src.ui.widgets.history_widget import HistoryWidget
@@ -32,12 +33,13 @@ class MainWindow(QMainWindow):
 
         self.container = container
         self.logger = LoggerManager.get_logger("MainWindow")
+        self._tabs: QTabWidget | None = None
 
         apply_theme(self)
         self.setWindowTitle("Diablo Translator")
-        self.resize(1480, 940)
         self.setup_ui()
         self.setup_toolbar()
+        self.apply_window_behavior()
         self.update_status_bar()
 
         self.translation_received.connect(self.on_live_translation)
@@ -49,9 +51,14 @@ class MainWindow(QMainWindow):
             self.voice_received.emit
         )
 
+        self._game_timer = QTimer(self)
+        self._game_timer.setInterval(2500)
+        self._game_timer.timeout.connect(self._on_game_timer)
+        self._game_timer.start()
+
     def setup_ui(self) -> None:
         header = self._build_header()
-        tabs = QTabWidget()
+        self._tabs = QTabWidget()
 
         sanctuary = self._build_sanctuary_tab()
         gameplay = GameplayWidget(
@@ -60,16 +67,16 @@ class MainWindow(QMainWindow):
         )
         history = HistoryWidget(self.container)
 
-        tabs.addTab(sanctuary, "Sanctuaire")
-        tabs.addTab(gameplay, "Gameplay")
-        tabs.addTab(history, "Grimoire")
+        self._tabs.addTab(sanctuary, "Sanctuaire")
+        self._tabs.addTab(gameplay, "Gameplay")
+        self._tabs.addTab(history, "Grimoire")
 
         central = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(16, 16, 16, 8)
         layout.setSpacing(12)
         layout.addLayout(header)
-        layout.addWidget(tabs, stretch=1)
+        layout.addWidget(self._tabs, stretch=1)
         central.setLayout(layout)
 
         self.gameplay_widget = gameplay
@@ -79,6 +86,22 @@ class MainWindow(QMainWindow):
         toolbar = QToolBar("Actions rapides")
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
+
+        self.game_mode_action = QAction("Mode Jeu", self)
+        self.game_mode_action.setCheckable(True)
+        self.game_mode_action.setChecked(self.container.config.overlay_compact)
+        self.game_mode_action.setToolTip(
+            "Fenêtre compacte, transparente et toujours devant le jeu"
+        )
+        self.game_mode_action.toggled.connect(self.toggle_game_mode)
+        toolbar.addAction(self.game_mode_action)
+
+        top_action = QAction("Toujours devant", self)
+        top_action.setCheckable(True)
+        top_action.setChecked(self.container.config.always_on_top)
+        top_action.toggled.connect(self.toggle_always_on_top)
+        toolbar.addAction(top_action)
+        self._always_on_top_action = top_action
 
         monitor_action = QAction(
             AssetManager.icon("play"),
@@ -109,13 +132,49 @@ class MainWindow(QMainWindow):
         settings_action.triggered.connect(self.open_settings)
         toolbar.addAction(settings_action)
 
+    def apply_window_behavior(self) -> None:
+        config = self.container.config
+        font = AssetManager.ui_font(config.ui_font_size)
+        self.setFont(font)
+        self.gameplay_widget.chat_log.setFont(
+            AssetManager.monospace_font(config.ui_font_size)
+        )
+        WindowBehaviorService.apply(self, config)
+
+    def toggle_game_mode(self, enabled: bool) -> None:
+        self.container.config.overlay_compact = enabled
+        self.container.config.overlay_enabled = enabled or self.container.config.overlay_enabled
+        self.container.config.always_on_top = True
+        self._always_on_top_action.setChecked(True)
+        self.apply_window_behavior()
+        self.update_status_bar()
+
+    def toggle_always_on_top(self, enabled: bool) -> None:
+        self.container.config.always_on_top = enabled
+        self.apply_window_behavior()
+
+    def _on_game_timer(self) -> None:
+        status = self.container.game_detection.scan()
+        if not status.is_any_running:
+            return
+
+        if self.container.config.auto_raise_on_game:
+            WindowBehaviorService.raise_if_game_mode(self, self.container.config)
+
+        if (
+            self.container.config.auto_start_monitor
+            and not self.container.worker.is_running
+            and self.container.config.chat_monitor_enabled
+        ):
+            self.gameplay_widget.start_worker()
+
     def _build_header(self) -> QHBoxLayout:
         title = QLabel("DIABLO TRANSLATOR")
         title.setObjectName("AppTitle")
         title.setFont(AssetManager.ui_font(24, bold=True))
 
         subtitle = QLabel(
-            "Chat live · DeepL/Google · Détection langue · Cache persistant"
+            "Overlay transparent · Toujours devant · Chat live OCR"
         )
         subtitle.setObjectName("AppSubtitle")
 
@@ -142,13 +201,12 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
 
         intro = QLabel(
-            "Structure pro optimisée :\n\n"
-            "• assets/ — thèmes, icônes, polices\n"
-            "• cache/ — traductions persistées\n"
-            "• models/ — modèles OCR locaux\n"
-            "• build/ — compilation PyInstaller\n"
-            "• tests/ — tests unitaires\n\n"
-            "Raccourcis : Ctrl+Entrée traduire · Ctrl+M micro · F5 actualiser"
+            "Mode Jeu recommandé pendant Diablo :\n\n"
+            "• Fenêtre compacte et transparente\n"
+            "• Toujours devant le jeu (sans Alt+Entrée)\n"
+            "• Surveillance chat automatique\n"
+            "• Opacité réglable dans Paramètres → Overlay\n\n"
+            "Raccourcis : Ctrl+Entrée · Ctrl+M · F5"
         )
         intro.setWordWrap(True)
         intro.setObjectName("MutedText")
@@ -173,6 +231,7 @@ class MainWindow(QMainWindow):
         status = self.container.game_detection.scan()
         cache = self.container.pipeline.cache.stats
         provider = self.container.pipeline.translator.provider_name.upper()
+        overlay = "ON" if self.container.config.overlay_enabled else "OFF"
 
         game_text = (
             status.summary()
@@ -180,8 +239,8 @@ class MainWindow(QMainWindow):
             else "Aucun jeu Diablo actif"
         )
         message = (
-            f"{game_text}  |  Moteur: {provider}  |  "
-            f"Cache: {cache.entries} entrées ({cache.hits} hits / {cache.misses} miss)"
+            f"{game_text}  |  Overlay: {overlay}  |  Moteur: {provider}  |  "
+            f"Cache: {cache.entries} ({cache.hits}/{cache.misses})"
         )
         self.statusBar().showMessage(message)
 
@@ -191,6 +250,9 @@ class MainWindow(QMainWindow):
             return
 
         self.container.apply_config(updated)
+        self.game_mode_action.setChecked(updated.overlay_compact)
+        self._always_on_top_action.setChecked(updated.always_on_top)
+        self.apply_window_behavior()
         self.gameplay_widget.refresh_game_status()
         self.update_status_bar()
         self.logger.info("Paramètres mis à jour")
@@ -198,6 +260,7 @@ class MainWindow(QMainWindow):
     def on_live_translation(self, result: TranslationResult) -> None:
         self.gameplay_widget.show_live_translation(result)
         self.update_status_bar()
+        WindowBehaviorService.raise_if_game_mode(self, self.container.config)
 
     def on_voice_result(self, payload) -> None:
         self.gameplay_widget.handle_voice_result(payload)

@@ -40,7 +40,7 @@ OCR du chat en direct · Google & DeepL · Détection automatique des langues ·
 | **Voix** | Entrée micro + lecture vocale optionnelle |
 | **Cache** | Traductions persistées sur disque (`cache/translations/`) |
 | **Historique** | Grimoire des traductions + export JSON/CSV |
-| **Interface** | Thème sombre inspiré de Diablo IV, icônes SVG, raccourcis clavier |
+| **Interface** | Thème sombre inspiré de Diablo IV, icône dorée, raccourci bureau |
 
 ---
 
@@ -185,7 +185,7 @@ launcher.py
 Diablo_Translator/
 ├── assets/
 │   ├── fonts/          Polices personnalisées
-│   ├── icons/          Icônes SVG
+│   ├── icons/          app.svg, app.ico (Windows), generate_app_icon.py
 │   └── themes/         Thème diablo_dark.qss
 ├── build/              Compilation PyInstaller
 ├── cache/              Cache traductions & OCR
@@ -211,10 +211,19 @@ python tests/run_tests.py
 ### Compiler un exécutable
 
 ```bash
+python assets/icons/generate_app_icon.py   # génère app.ico + app.png
 python build/build.py
 ```
 
-L'exécutable est généré dans `build/dist/`.
+L'exécutable est généré dans `build/dist/` avec l'icône Diablo intégrée.
+
+**Raccourci bureau (Windows) :**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build/create_desktop_shortcut.ps1
+```
+
+Ou double-cliquez `build/Lancer Diablo Translator.bat`.
 
 ---
 

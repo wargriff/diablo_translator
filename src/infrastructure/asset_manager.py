@@ -5,7 +5,9 @@ from pathlib import Path
 from PyQt6.QtGui import QFont, QFontDatabase, QIcon
 
 from src.infrastructure.paths import (
-    APP_ICON,
+    APP_ICON_ICO,
+    APP_ICON_PNG,
+    APP_ICON_SVG,
     DEFAULT_THEME,
     FONTS_DIR,
     ICONS_DIR,
@@ -80,8 +82,9 @@ class AssetManager:
 
     @classmethod
     def app_icon(cls) -> QIcon:
-        if APP_ICON.exists():
-            return QIcon(str(APP_ICON))
+        for path in (APP_ICON_ICO, APP_ICON_PNG, APP_ICON_SVG):
+            if path.exists():
+                return QIcon(str(path))
         return cls.icon("app")
 
     @classmethod
