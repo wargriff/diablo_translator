@@ -5,6 +5,7 @@ from typing import Any
 
 from src.infrastructure.paths import CACHE_OCR_DIR, MODELS_DIR, ensure_project_dirs
 from src.ocr.chat_image_preprocessor import ChatImagePreprocessor
+from src.ocr.easyocr_languages import split_easyocr_language_groups
 
 
 class OCRService:
@@ -12,29 +13,47 @@ class OCRService:
     def __init__(self, languages: tuple[str, ...] = ("en", "fr", "de")) -> None:
         ensure_project_dirs()
         self._languages = languages
-        self._reader: Any | None = None
+        self._latin_langs, self._cyrillic_langs = split_easyocr_language_groups(languages)
+        self._latin_reader: Any | None = None
+        self._cyrillic_reader: Any | None = None
         os.environ.setdefault("EASYOCR_MODULE_PATH", str(MODELS_DIR))
         CACHE_OCR_DIR.mkdir(parents=True, exist_ok=True)
 
     def reload(self, languages: tuple[str, ...]) -> None:
-        if languages != self._languages:
-            self._languages = languages
-            self._reader = None
+        if languages == self._languages:
+            return
 
-    def _get_reader(self) -> Any:
-        if self._reader is None:
-            import easyocr
+        self._languages = languages
+        self._latin_langs, self._cyrillic_langs = split_easyocr_language_groups(languages)
+        self._latin_reader = None
+        self._cyrillic_reader = None
 
-            self._reader = easyocr.Reader(
-                list(self._languages),
-                gpu=False,
-                model_storage_directory=str(MODELS_DIR),
-            )
+    def _create_reader(self, lang_list: tuple[str, ...]) -> Any:
+        import easyocr
 
-        return self._reader
+        return easyocr.Reader(
+            list(lang_list),
+            gpu=False,
+            model_storage_directory=str(MODELS_DIR),
+        )
+
+    def _get_latin_reader(self) -> Any:
+        if self._latin_reader is None:
+            self._latin_reader = self._create_reader(self._latin_langs)
+        return self._latin_reader
+
+    def _get_cyrillic_reader(self) -> Any | None:
+        if not self._cyrillic_langs:
+            return None
+        if self._cyrillic_reader is None:
+            self._cyrillic_reader = self._create_reader(self._cyrillic_langs)
+        return self._cyrillic_reader
 
     def prewarm(self) -> None:
-        self._get_reader()
+        self._get_latin_reader()
+        reader = self._get_cyrillic_reader()
+        if reader is not None:
+            return
 
     def extract_text(self, image: Any) -> str:
         return self.extract_chat_text(image)
@@ -52,8 +71,14 @@ class OCRService:
         import numpy as np
 
         prepared = ChatImagePreprocessor.prepare(image, enabled=preprocess)
-        reader = self._get_reader()
-        results = reader.readtext(np.asarray(prepared))
+        array = np.asarray(prepared)
+
+        results: list[tuple[Any, str, float]] = []
+        results.extend(self._get_latin_reader().readtext(array))
+
+        cyrillic_reader = self._get_cyrillic_reader()
+        if cyrillic_reader is not None:
+            results.extend(cyrillic_reader.readtext(array))
 
         lines = self._group_results(results, min_confidence=min_confidence)
         return "\n".join(lines).strip()

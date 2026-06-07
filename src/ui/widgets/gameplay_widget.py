@@ -185,8 +185,7 @@ class GameplayWidget(QWidget):
         if self.controller.app_config.ingame_only_mode:
             self._append_chat_html(
                 '<span style="color:#d4af37;font-weight:700;">Mode In-Game</span> '
-                '<span style="color:#8a8278;">— traductions du chat Diablo ici. '
-                'Cliquez « Surveiller chat » si rien n’apparaît.</span>'
+                '<span style="color:#8a8278;">— traductions du chat Diablo ici</span>'
             )
         else:
             self._append_chat_html(
@@ -387,7 +386,11 @@ class GameplayWidget(QWidget):
             return
 
         if status.last_error:
-            self._append_overlay_status(f"OCR erreur : {status.last_error}", error=True)
+            message = f"OCR erreur : {status.last_error}"
+            if message == self._last_ocr_status_message:
+                return
+            self._last_ocr_status_message = message
+            self._append_overlay_status(message, error=True)
             return
 
         if not self.controller.app_config.overlay_compact:

@@ -109,6 +109,7 @@ class LiveChatService:
             preset_key=capture.preset_key,
             ocr_line_count=len(capture.raw_text.splitlines()) if capture.raw_text else 0,
             new_message_count=len(capture.new_messages),
+            last_error="",
         )
         self._emit_status()
 
