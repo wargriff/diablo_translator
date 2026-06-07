@@ -216,6 +216,8 @@ class MainWindow(QMainWindow):
             "• Fenêtre compacte et transparente\n"
             "• Toujours devant le jeu (sans Alt+Entrée)\n"
             "• Surveillance chat automatique\n"
+            "• Chat étranger → français · Votre français → langue du joueur\n"
+            "• Mixte « yo la team » conservé tel quel\n"
             "• Opacité réglable dans Paramètres → Overlay\n\n"
             "Raccourcis (hors champ de saisie) : Ctrl+Shift+M · Ctrl+Shift+R\n"
             "Dans le champ chat : Ctrl+Entrée pour traduire"

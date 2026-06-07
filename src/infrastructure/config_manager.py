@@ -29,6 +29,9 @@ class AppConfig:
     ocr_confidence_min: float = 0.35
     low_cpu_mode: bool = False
     auto_detect_language: bool = True
+    bidirectional_mode: bool = True
+    default_reply_language: str = "en"
+    preserve_mixed_language: bool = True
     chat_monitor_enabled: bool = True
     chat_region_preset: str = "auto"
     voice_input_enabled: bool = False

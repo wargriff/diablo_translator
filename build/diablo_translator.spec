@@ -25,7 +25,7 @@ a = Analysis(
         "PIL",
         "psutil",
         "speech_recognition",
-        "pyaudio",
+        "sounddevice",
         "pyttsx3",
     ],
     hookspath=[],

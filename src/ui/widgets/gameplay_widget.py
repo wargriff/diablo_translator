@@ -177,7 +177,7 @@ class GameplayWidget(QWidget):
         self.chat_input.clear()
 
         try:
-            result = self.container.pipeline.process_text(text)
+            result = self.container.pipeline.process_text(text, origin="user")
         except Exception as exc:
             self._append_chat_line("Erreur", str(exc), "#c0392b")
             return
@@ -264,17 +264,30 @@ class GameplayWidget(QWidget):
 
         self._append_chat_line(speaker, result.source_text, "#c9a24d")
 
-        if result.skipped:
+        if result.preserved_mixed:
+            self._append_chat_line(
+                "Info",
+                "Mixte FR/EN conservé tel quel",
+                "#8a8278",
+            )
+        elif result.skipped:
             self._append_chat_line(
                 "Info",
                 f"Déjà en {source_lang} — traduction ignorée",
                 "#8a8278",
             )
         else:
+            source_name = self.container.pipeline.translator.language_display_name(
+                result.source_language
+            )
+            target_name = self.container.pipeline.translator.language_display_name(
+                result.target_language
+            )
+            label = "Réponse" if result.outgoing else "Traduction"
             self._append_chat_line(
-                "Traduction",
-                f"{result.translated_text} [{source_lang} → {result.target_language} · {provider}]",
-                "#7cb342",
+                label,
+                f"{result.translated_text} [{source_name} → {target_name} · {provider}]",
+                "#7cb342" if not result.outgoing else "#64b5f6",
             )
 
         self.last_translation_label.setText(
@@ -324,8 +337,14 @@ class GameplayWidget(QWidget):
         provider = self.container.pipeline.translator.provider_name.upper()
         target = self.container.config.language.upper()
         cache = self.container.pipeline.cache.stats
+        peer = self.container.pipeline.conversation.last_foreign_language
+        peer_text = (
+            f" · Réponse auto : {peer.upper()}"
+            if peer and self.container.config.bidirectional_mode
+            else ""
+        )
         self.provider_label.setText(
-            f"Moteur : {provider} · Langue cible : {target} · "
+            f"Moteur : {provider} · Langue maison : {target}{peer_text} · "
             f"Cache disque : {cache.entries} entrées"
         )
 

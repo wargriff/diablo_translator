@@ -8,6 +8,10 @@ from src.domain.models.translation_result import TranslationResult
 
 class SpeechInputService:
 
+    SAMPLE_RATE = 16_000
+    CHANNELS = 1
+    SAMPLE_WIDTH = 2
+
     def __init__(
         self,
         on_text: Callable[[str], None] | None = None,
@@ -29,15 +33,15 @@ class SpeechInputService:
         except ModuleNotFoundError:
             return (
                 False,
-                "SpeechRecognition manquant — lancez : pip install SpeechRecognition pyaudio",
+                "SpeechRecognition manquant — pip install SpeechRecognition sounddevice",
             )
 
         try:
-            import pyaudio  # noqa: F401
+            import sounddevice  # noqa: F401
         except ModuleNotFoundError:
             return (
                 False,
-                "PyAudio manquant — lancez : pip install pyaudio",
+                "SoundDevice manquant — pip install sounddevice (remplace PyAudio sur Python 3.14)",
             )
 
         return True, ""
@@ -64,31 +68,39 @@ class SpeechInputService:
         self._thread = None
 
     def _listen_loop(self) -> None:
+        import sounddevice as sd
         import speech_recognition as sr
 
         recognizer = sr.Recognizer()
-        try:
-            microphone = sr.Microphone()
-        except Exception as exc:
-            if self._on_text:
-                self._on_text(f"__ERROR__:Microphone indisponible ({exc})")
-            return
-
-        with microphone as source:
-            recognizer.adjust_for_ambient_noise(source, duration=0.6)
+        recognizer.dynamic_energy_threshold = True
 
         while not self._stop_event.is_set():
             try:
-                with microphone as source:
-                    audio = recognizer.listen(source, timeout=4, phrase_time_limit=8)
+                recording = sd.rec(
+                    int(4 * self.SAMPLE_RATE),
+                    samplerate=self.SAMPLE_RATE,
+                    channels=self.CHANNELS,
+                    dtype="int16",
+                )
+                sd.wait()
 
-                text = recognizer.recognize_google(audio, language=self._language)
+                if self._stop_event.is_set():
+                    break
+
+                audio_data = sr.AudioData(
+                    recording.tobytes(),
+                    self.SAMPLE_RATE,
+                    self.SAMPLE_WIDTH,
+                )
+                text = recognizer.recognize_google(audio_data, language=self._language)
                 if text.strip() and self._on_text:
                     self._on_text(text.strip())
-            except sr.WaitTimeoutError:
-                continue
             except sr.UnknownValueError:
                 continue
+            except sr.RequestError as exc:
+                if self._on_text:
+                    self._on_text(f"__ERROR__:Service vocal indisponible ({exc})")
+                break
             except Exception as exc:
                 if self._on_text:
                     self._on_text(f"__ERROR__:Erreur micro ({exc})")

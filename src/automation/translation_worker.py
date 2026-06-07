@@ -60,7 +60,7 @@ class TranslationWorker:
         )
 
         for line in capture.new_lines:
-            result = self._container.pipeline.process_text(line)
+            result = self._container.pipeline.process_text(line, origin="chat")
             self._emit_result(result)
 
     def _run_full_screen(self) -> None:
@@ -72,6 +72,9 @@ class TranslationWorker:
 
     def _emit_result(self, result: TranslationResult) -> None:
         if not self._on_translation or not result.translated_text:
+            return
+
+        if result.skipped and not result.preserved_mixed:
             return
 
         self._on_translation(result)

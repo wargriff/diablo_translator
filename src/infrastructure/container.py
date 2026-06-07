@@ -6,6 +6,7 @@ from src.export.export_service import ExportService
 from src.game_detection.game_detection_service import GameDetectionService
 from src.infrastructure.config_manager import AppConfig, ConfigManager
 from src.infrastructure.database import Database
+from src.translation.conversation_context import ConversationContext
 from src.translation.translation_pipeline import TranslationPipeline
 from src.voice.speech_service import SpeechInputService, SpeechOutputService
 
@@ -16,8 +17,9 @@ class Container:
         Database.initialize()
 
         self.config = ConfigManager.load()
+        self.conversation = ConversationContext()
         self.capture = CaptureService()
-        self.pipeline = TranslationPipeline(self.config)
+        self.pipeline = TranslationPipeline(self.config, self.conversation)
         self.cache = self.pipeline.cache
         self.game_detection = GameDetectionService()
         self.chat_monitor = ChatMonitorService()
@@ -35,7 +37,7 @@ class Container:
 
     def apply_config(self, config: AppConfig) -> None:
         self.config = config
-        self.pipeline = TranslationPipeline(config)
+        self.pipeline.reload(config)
         self.cache = self.pipeline.cache
         self._configure_speech_input()
 
@@ -72,7 +74,7 @@ class Container:
                 self._voice_listener(text)
             return
 
-        result = self.pipeline.process_text(text)
+        result = self.pipeline.process_text(text, origin="voice")
         if self._voice_listener:
             self._voice_listener(result)
 

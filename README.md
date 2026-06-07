@@ -34,8 +34,8 @@ OCR du chat en direct · Google & DeepL · Détection automatique des langues ·
 | Catégorie | Détail |
 |-----------|--------|
 | **Chat live** | Lecture OCR de la zone chat du jeu (coin inférieur gauche) |
-| **Traduction** | Moteurs **Google** et **DeepL** interchangeables |
-| **Langues** | Détection automatique de la langue source |
+| **Traduction** | Moteurs **Google** et **DeepL**, mode **bidirectionnel** (chat → FR, vos réponses → langue du joueur) |
+| **Langues** | Détection automatique · mixte FR/EN conservé (« yo la team ») |
 | **Jeux** | Détection en temps réel de D3, D4 et Immortal |
 | **Voix** | Entrée micro + lecture vocale optionnelle |
 | **Cache** | Traductions persistées sur disque (`cache/translations/`) |
@@ -77,15 +77,15 @@ python launcher.py
 
 ```bash
 pip install -r requirements.txt
-pip install -r requirements-voice.txt   # micro (PyAudio, optionnel)
+pip install -r requirements-voice.txt   # micro (SoundDevice, optionnel)
 python build/install_dependencies.py    # tout installer + verification
 ```
 
 Pour l'entrée vocale (optionnel) :
-
 ```bash
-pip install pyaudio
+pip install -r requirements-voice.txt
 ```
+Utilise **SoundDevice** (compatible Python 3.14+, remplace PyAudio).
 
 ### DeepL (optionnel, recommandé)
 
@@ -112,7 +112,10 @@ Les paramètres sont stockés dans `user_data/settings.json`.
 
 | Option | Description | Défaut |
 |--------|-------------|--------|
-| `language` | Langue cible | `fr` |
+| `language` | Langue maison (ex. français) | `fr` |
+| `bidirectional_mode` | Chat étranger → FR, vos messages FR → langue du joueur | `true` |
+| `default_reply_language` | Langue de réponse avant le 1er message étranger | `en` |
+| `preserve_mixed_language` | Garder « yo la team » tel quel | `true` |
 | `translator` | `google` ou `deepl` | `google` |
 | `chat_monitor_enabled` | Surveillance OCR du chat | `true` |
 | `chat_region_preset` | Zone chat : `auto`, `d3`, `d4`, `immortal` | `auto` |
@@ -252,10 +255,10 @@ powershell -ExecutionPolicy Bypass -File build/create_desktop_shortcut.ps1
 **Le micro ne répond pas ?**  
 Installez les dépendances vocales puis vérifiez :
 ```bash
-pip install SpeechRecognition pyaudio
+pip install -r requirements-voice.txt
 python launcher.py check
 ```
-Sur Windows, si `pyaudio` échoue : `pip install pipwin && pipwin install pyaudio`  
+Utilise **SoundDevice** (plus besoin de PyAudio sur Python 3.14).  
 Autorisez aussi l'accès micro dans les paramètres Windows.
 
 **La saisie dans le chat bug ou perd le focus ?**  

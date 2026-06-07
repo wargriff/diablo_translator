@@ -12,6 +12,8 @@ class TranslationResult:
     target_language: str
     provider: str
     skipped: bool = False
+    preserved_mixed: bool = False
+    outgoing: bool = False
 
     @property
     def display_text(self) -> str:

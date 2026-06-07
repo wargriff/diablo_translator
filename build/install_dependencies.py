@@ -36,9 +36,8 @@ def main() -> int:
         )
         if voice_code != 0:
             print(
-                "\nPyAudio non installe (micro desactive). Sur Windows Python 3.14 :"
-                "\n  - installez Python 3.12 si vous voulez le micro"
-                "\n  - ou attendez une roue PyAudio compatible"
+                "\nMicro non installe. Installez : pip install -r requirements-voice.txt"
+                "\n  (SoundDevice remplace PyAudio sur Python 3.14+)"
             )
 
     print("\nVerification des dependances...")

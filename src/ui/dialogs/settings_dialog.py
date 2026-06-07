@@ -63,6 +63,16 @@ class SettingsDialog(QDialog):
         self.auto_detect_language = QCheckBox()
         self.auto_detect_language.setChecked(config.auto_detect_language)
 
+        self.bidirectional_mode = QCheckBox()
+        self.bidirectional_mode.setChecked(config.bidirectional_mode)
+
+        self.preserve_mixed_language = QCheckBox()
+        self.preserve_mixed_language.setChecked(config.preserve_mixed_language)
+
+        self.default_reply_language = QComboBox()
+        self.default_reply_language.addItems(["en", "de", "es", "it", "pt", "ru"])
+        self.default_reply_language.setCurrentText(config.default_reply_language)
+
         self.auto_start_monitor = QCheckBox()
         self.auto_start_monitor.setChecked(config.auto_start_monitor)
 
@@ -198,6 +208,9 @@ class SettingsDialog(QDialog):
         form = QFormLayout()
         form.addRow("Moteur", self.translator)
         form.addRow("Clé API DeepL", self.deepl_api_key)
+        form.addRow("Mode bidirectionnel", self.bidirectional_mode)
+        form.addRow("Langue de réponse par défaut", self.default_reply_language)
+        form.addRow("Conserver mixte FR/EN", self.preserve_mixed_language)
         form.addRow("Détection auto langue", self.auto_detect_language)
         widget = QWidget()
         widget.setLayout(form)
@@ -248,6 +261,9 @@ class SettingsDialog(QDialog):
             ocr_confidence_min=self.ocr_confidence_min.value(),
             low_cpu_mode=self.low_cpu_mode.isChecked(),
             auto_detect_language=self.auto_detect_language.isChecked(),
+            bidirectional_mode=self.bidirectional_mode.isChecked(),
+            default_reply_language=self.default_reply_language.currentText(),
+            preserve_mixed_language=self.preserve_mixed_language.isChecked(),
             chat_monitor_enabled=self.chat_monitor_enabled.isChecked(),
             chat_region_preset=self.chat_region.currentData(),
             voice_input_enabled=self.voice_input_enabled.isChecked(),

@@ -13,7 +13,7 @@ REQUIRED_PACKAGES = (
 
 VOICE_PACKAGES = (
     ("speech_recognition", "SpeechRecognition"),
-    ("pyaudio", "PyAudio"),
+    ("sounddevice", "SoundDevice"),
 )
 
 
@@ -85,8 +85,8 @@ def print_dependency_report() -> int:
 
     if voice_missing:
         print(
-            "\nMicro désactivé tant que ces paquets ne sont pas installés : "
-            "pip install SpeechRecognition pyaudio"
+            "\nMicro desactive tant que ces paquets ne sont pas installes : "
+            "pip install SpeechRecognition sounddevice"
         )
 
     print("\nToutes les dépendances principales sont installées.")

@@ -7,15 +7,21 @@ from src.domain.models.translation_result import TranslationResult
 from src.infrastructure.config_manager import AppConfig, ConfigManager
 from src.ocr import OCRService
 from src.services.history_service import HistoryService
+from src.translation.conversation_context import ConversationContext
 from src.translation.translation_service import TranslationService
 
 
 class TranslationPipeline:
 
-    def __init__(self, config: AppConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: AppConfig | None = None,
+        conversation: ConversationContext | None = None,
+    ) -> None:
         self._config = config or ConfigManager.load()
+        self.conversation = conversation or ConversationContext()
         self.ocr = OCRService(self._parse_ocr_languages(self._config.ocr_languages))
-        self.translator = TranslationService(self._config)
+        self.translator = TranslationService(self._config, self.conversation)
         self.cache = TranslationCache(max_entries=self._config.cache_max_entries)
         self.history = HistoryService()
 
@@ -25,31 +31,43 @@ class TranslationPipeline:
         self.translator.reload(config)
         self.cache = TranslationCache(max_entries=config.cache_max_entries)
 
-    def process_text(self, source_text: str) -> TranslationResult:
+    def process_text(
+        self,
+        source_text: str,
+        *,
+        origin: str = "chat",
+    ) -> TranslationResult:
         provider = self.translator.provider_name
-        target = self._config.language
+        preview_target = self._preview_target(source_text, origin)
 
-        cached = self.cache.get(source_text, target, provider)
+        cached = self.cache.get(source_text, preview_target, provider)
         if cached:
+            detected = self.translator.detect_language(source_text)
+            if origin == "chat" and detected:
+                self.conversation.remember_foreign(
+                    detected,
+                    self._config.language,
+                )
             return TranslationResult(
                 source_text=source_text,
                 translated_text=cached,
-                source_language=self.translator.detect_language(source_text),
-                target_language=target,
+                source_language=detected,
+                target_language=preview_target,
                 provider=provider,
+                outgoing=origin in {"user", "voice"},
             )
 
-        result = self.translator.translate(source_text)
+        result = self.translator.translate(source_text, origin=origin)
         if result.translated_text and not result.skipped:
             self.cache.set(
                 source_text,
                 result.translated_text,
-                target_language=target,
+                target_language=result.target_language,
                 provider=provider,
                 source_language=result.source_language,
             )
 
-        if result.translated_text:
+        if result.translated_text and not result.skipped:
             self.history.add(
                 result.source_text,
                 result.translated_text,
@@ -59,7 +77,7 @@ class TranslationPipeline:
 
         return result
 
-    def process_image(self, image: Any) -> TranslationResult:
+    def process_image(self, image: Any, *, origin: str = "chat") -> TranslationResult:
         source_text = self.ocr.extract_text(image)
         if not source_text:
             return TranslationResult(
@@ -70,7 +88,23 @@ class TranslationPipeline:
                 provider=self.translator.provider_name,
             )
 
-        return self.process_text(source_text)
+        return self.process_text(source_text, origin=origin)
+
+    def _preview_target(self, source_text: str, origin: str) -> str:
+        home = self._config.language
+        if not self._config.bidirectional_mode:
+            return home
+
+        if origin in {"user", "voice"}:
+            detected = self.translator.detect_language(source_text)
+            if self.translator.is_home_language(detected):
+                return (
+                    self.conversation.last_foreign_language
+                    or self._config.default_reply_language
+                )
+            return home
+
+        return home
 
     @staticmethod
     def _parse_ocr_languages(raw: str) -> tuple[str, ...]:
