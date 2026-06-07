@@ -2,10 +2,38 @@
 
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_submodules
+
 spec_dir = Path(SPECPATH).resolve()
 project_root = spec_dir.parent
 icon_path = project_root / "assets" / "icons" / "app.ico"
 version_path = project_root / "build" / "version_info.txt"
+
+src_hiddenimports = collect_submodules("src")
+
+hiddenimports = [
+    "PyQt6",
+    "PyQt6.QtCore",
+    "PyQt6.QtGui",
+    "PyQt6.QtWidgets",
+    "deep_translator",
+    "mss",
+    "PIL",
+    "psutil",
+    "speech_recognition",
+    "sounddevice",
+    "langdetect",
+    "easyocr",
+    "cv2",
+    "numpy",
+    "src.translation.language_detection_service",
+    "src.translation.conversation_context",
+    "src.translation.translation_service",
+    "src.translation.translation_pipeline",
+    "src.infrastructure.container",
+    "src.bootstrap.app",
+    "src.programs.cli",
+] + src_hiddenimports
 
 a = Analysis(
     [str(project_root / "launcher.py")],
@@ -15,18 +43,7 @@ a = Analysis(
         (str(project_root / "assets"), "assets"),
         (str(project_root / ".env.example"), "."),
     ],
-    hiddenimports=[
-        "PyQt6",
-        "PyQt6.QtCore",
-        "PyQt6.QtGui",
-        "PyQt6.QtWidgets",
-        "deep_translator",
-        "mss",
-        "PIL",
-        "psutil",
-        "speech_recognition",
-        "sounddevice",
-    ],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

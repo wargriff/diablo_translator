@@ -125,7 +125,7 @@ class LanguageDetectionService:
         sorted_scores = sorted(scores.values(), reverse=True)
         if len(sorted_scores) > 1 and sorted_scores[0] == sorted_scores[1]:
             padded = f" {text.lower()} "
-            if any(marker in padded for marker self._FRENCH_MARKERS):
+            if any(marker in padded for marker in self._FRENCH_MARKERS):
                 return "fr"
             if any(marker in padded for marker in self._ENGLISH_MARKERS):
                 return "en"
