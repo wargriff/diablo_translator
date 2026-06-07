@@ -21,17 +21,26 @@ def run_translate(text: str) -> int:
 
 def run_game_status() -> int:
     try:
+        from src.game_detection import SUPPORTED_GAMES
         from src.infrastructure.container import Container
 
         container = Container()
-        running = container.game_detection.is_running()
+        status = container.game_detection.scan()
     except ModuleNotFoundError as exc:
         print(f"Dépendance manquante : {exc.name}")
         print("Installez les dépendances : pip install -r requirements.txt")
         return 1
 
-    print("Diablo III détecté" if running else "Diablo III non détecté")
-    return 0 if running else 1
+    for game in SUPPORTED_GAMES:
+        if game.key in status.active_processes:
+            process = status.active_processes[game.key]
+            print(f"[ACTIF] {game.title} ({process})")
+        else:
+            print(f"[OFF]   {game.title}")
+
+    print()
+    print(status.summary())
+    return 0 if status.is_any_running else 1
 
 
 def run_export(fmt: str, output: Path | None) -> int:
@@ -60,13 +69,13 @@ def run_analytics() -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="launcher",
-        description="Diablo III Translator",
+        description="Diablo Translator",
     )
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("gui", help="Lancer l'interface graphique")
     sub.add_parser("check", help="Vérifier les dépendances")
-    sub.add_parser("game", help="Vérifier si Diablo III est lancé")
+    sub.add_parser("game", help="Détecter Diablo III, IV ou Immortal")
     sub.add_parser("stats", help="Afficher les statistiques")
 
     translate = sub.add_parser("translate", help="Traduire un texte")

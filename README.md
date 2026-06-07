@@ -1,7 +1,7 @@
 
-# Diablo III Translator
+# Diablo Translator
 
-OCR temps réel + traduction automatique.
+OCR temps réel + traduction automatique pour Diablo III, Diablo IV et Diablo Immortal.
 
 ## Installation
 
@@ -23,7 +23,7 @@ python launcher.py gui
 ```bash
 python launcher.py check                 # vérifier les dépendances
 python launcher.py translate "hello"     # traduire un texte
-python launcher.py game                  # détecter Diablo III
+python launcher.py game                  # détecter D3, D4 ou Immortal
 python launcher.py stats                 # statistiques
 python launcher.py export                # export JSON
 python launcher.py export --format csv   # export CSV

@@ -15,7 +15,7 @@ class SettingsDialog(QDialog):
 
     def __init__(self, config: AppConfig, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Paramètres")
+        self.setWindowTitle("Paramètres — Diablo Translator")
 
         self.language = QComboBox()
         self.language.addItems(["fr", "en", "de", "es", "it"])
