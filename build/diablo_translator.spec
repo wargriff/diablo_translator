@@ -26,12 +26,11 @@ a = Analysis(
         "psutil",
         "speech_recognition",
         "sounddevice",
-        "pyttsx3",
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=["matplotlib", "notebook", "jupyter"],
+    excludes=["matplotlib", "notebook", "jupyter", "pyttsx3", "pythoncom", "pywintypes"],
     noarchive=False,
     optimize=0,
 )
