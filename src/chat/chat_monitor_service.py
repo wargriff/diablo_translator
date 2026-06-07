@@ -2,16 +2,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.capture.capture_region_resolver import CaptureRegionResolver
 from src.chat.chat_line_extractor import ChatLineExtractor
-from src.chat.chat_region import GAME_TO_PRESET, get_preset
+from src.chat.chat_message_parser import ChatMessage, ChatMessageParser
+from src.infrastructure.config_manager import AppConfig
 
 
 @dataclass(slots=True)
 class ChatCaptureResult:
 
     raw_text: str
-    new_lines: list[str]
+    new_messages: list[ChatMessage]
     preset_key: str
+    capture_source: str
+    display_mode: str
+    monitor_index: int
 
 
 class ChatMonitorService:
@@ -27,49 +32,36 @@ class ChatMonitorService:
         self,
         capture_service,
         game_detection_service,
-        chat_region_preset: str,
+        config: AppConfig,
         ocr_service,
     ) -> ChatCaptureResult:
-        preset_key = self._resolve_preset(game_detection_service, chat_region_preset)
-        preset = get_preset(preset_key)
-        region = self._build_region(preset)
+        resolved = CaptureRegionResolver.resolve(game_detection_service, config)
+        region = {
+            "left": resolved.left,
+            "top": resolved.top,
+            "width": resolved.width,
+            "height": resolved.height,
+        }
 
         image = capture_service.capture_region(region)
-        raw_text = ocr_service.extract_text(image)
-        new_lines = self._extractor.extract_new_lines(self._previous_text, raw_text)
+        raw_text = ocr_service.extract_chat_text(
+            image,
+            min_confidence=config.ocr_confidence_min,
+            preprocess=config.ocr_preprocess,
+        )
+        raw_lines = self._extractor.extract_new_lines(self._previous_text, raw_text)
+        new_messages: list[ChatMessage] = []
+        for line in raw_lines:
+            parsed = ChatMessageParser.parse(line)
+            if parsed:
+                new_messages.append(parsed)
         self._previous_text = raw_text
 
         return ChatCaptureResult(
             raw_text=raw_text,
-            new_lines=new_lines,
-            preset_key=preset_key,
+            new_messages=new_messages,
+            preset_key=resolved.preset_key,
+            capture_source=resolved.source,
+            display_mode=resolved.display_mode,
+            monitor_index=resolved.monitor_index,
         )
-
-    @staticmethod
-    def _resolve_preset(game_detection_service, preset_key: str) -> str:
-        if preset_key != "auto":
-            return preset_key
-
-        status = game_detection_service.scan()
-        if status.primary_game:
-            return GAME_TO_PRESET.get(status.primary_game.key, "d4")
-
-        return "d4"
-
-    @staticmethod
-    def _build_region(preset) -> dict[str, int]:
-        import mss
-
-        with mss.mss() as screen:
-            monitor = screen.monitors[1]
-            left = monitor["left"] + int(monitor["width"] * preset.left_pct)
-            top = monitor["top"] + int(monitor["height"] * preset.top_pct)
-            width = int(monitor["width"] * preset.width_pct)
-            height = int(monitor["height"] * preset.height_pct)
-
-        return {
-            "left": left,
-            "top": top,
-            "width": width,
-            "height": height,
-        }

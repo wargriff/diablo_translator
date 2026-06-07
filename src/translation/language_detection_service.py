@@ -54,6 +54,14 @@ class LanguageDetectionService:
         " help ",
     )
 
+    _POLISH_WORDS = re.compile(
+        r"\b(i|nie|tak|grupa|szukam|pomoc|cześć|dzieki|prosze)\b",
+        re.I,
+    )
+    _RUSSIAN_WORDS = re.compile(
+        r"\b(и|не|да|нет|привет|группа|нужна|помощь|спасибо|игра)\b",
+        re.I,
+    )
     _FRENCH_WORDS = re.compile(
         r"\b(je|tu|il|elle|nous|vous|les|des|une|pour|avec|pas|qui|est|dans|sur|"
         r"merci|bonjour|salut|oui|non|chez|fais|fait|veux|peux|peut|groupe|partie|"
@@ -117,6 +125,8 @@ class LanguageDetectionService:
             "en": len(self._ENGLISH_WORDS.findall(text)),
             "de": len(self._GERMAN_WORDS.findall(text)),
             "es": len(self._SPANISH_WORDS.findall(text)),
+            "pl": len(self._POLISH_WORDS.findall(text)),
+            "ru": len(self._RUSSIAN_WORDS.findall(text)),
         }
         best_lang, best_score = max(scores.items(), key=lambda item: item[1])
         if best_score == 0:

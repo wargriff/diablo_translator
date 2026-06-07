@@ -1,20 +1,31 @@
-# Lance Diablo Translator en contournant le blocage Windows (Smart App Control / SmartScreen).
+# Lance Diablo Translator — debloque MOTW / SmartScreen pour build local.
 $ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$exePath = Join-Path $projectRoot "build\dist\DiabloTranslator.exe"
+$distDir = Join-Path $projectRoot "build\dist"
+$exePath = Join-Path $distDir "DiabloTranslator.exe"
 $launcher = Join-Path $projectRoot "launcher.py"
+$securityScript = Join-Path $projectRoot "build\windows_security.ps1"
 
-function Remove-MotwBlock {
+function Clear-Motw {
     param([string]$Path)
 
-    if (-not (Test-Path $Path)) {
+    if (-not (Test-Path -LiteralPath $Path)) {
         return
     }
 
-    Unblock-File -Path $Path -ErrorAction SilentlyContinue
-    cmd /c "echo.>""$Path`:Zone.Identifier""" 2>$null | Out-Null
+    Unblock-File -LiteralPath $Path -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath "$Path`:Zone.Identifier" -Force -ErrorAction SilentlyContinue
+}
+
+function Clear-DistMotw {
+    if (-not (Test-Path -LiteralPath $distDir)) {
+        return
+    }
+
+    Get-ChildItem -LiteralPath $distDir -Recurse -File | ForEach-Object {
+        Clear-Motw $_.FullName
+    }
 }
 
 function Start-PythonApp {
@@ -33,18 +44,24 @@ function Start-PythonApp {
     Start-Process python -ArgumentList "launcher.py", "gui" -WorkingDirectory $projectRoot
 }
 
-Remove-MotwBlock $exePath
+if (Test-Path -LiteralPath $securityScript) {
+    powershell -NoProfile -ExecutionPolicy Bypass -File $securityScript -DistPath $distDir | Out-Null
+} else {
+    Clear-DistMotw
+}
 
-if (Test-Path $exePath) {
+Clear-Motw $exePath
+
+if (Test-Path -LiteralPath $exePath) {
     try {
-        Start-Process -FilePath $exePath -WorkingDirectory (Split-Path $exePath)
+        Start-Process -FilePath $exePath -WorkingDirectory $distDir
         exit 0
     } catch {
         Write-Host "Lancement .exe impossible, bascule vers Python..."
     }
 }
 
-if (-not (Test-Path $launcher)) {
+if (-not (Test-Path -LiteralPath $launcher)) {
     Write-Host "Erreur : launcher.py introuvable dans $projectRoot"
     exit 1
 }

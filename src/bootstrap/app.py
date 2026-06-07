@@ -17,6 +17,11 @@ class Application:
         self.container = Container()
 
     def run(self) -> None:
+        from src.infrastructure.single_instance import warn_if_already_running
+
+        if warn_if_already_running():
+            return
+
         app = QApplication(sys.argv)
         app.setApplicationName("Diablo Translator")
         app.setOrganizationName("DiabloTranslator")

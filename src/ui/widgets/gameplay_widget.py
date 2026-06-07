@@ -32,7 +32,8 @@ class GameplayWidget(QWidget):
         super().__init__()
         self.setObjectName("GameplayRoot")
         self.container = container
-        self.worker = container.worker
+        self.controller = container.gameplay_controller
+        self.worker = self.controller.worker
         self._on_status_update = on_status_update
 
         self.game_status = GameStatusPanel(container)
@@ -53,6 +54,7 @@ class GameplayWidget(QWidget):
 
         self._voice_busy = False
         self._shortcuts: list[QShortcut] = []
+        self._last_ocr_status_message = ""
 
         self.translate_button = QPushButton(" Traduire")
         self.translate_button.setObjectName("PrimaryButton")
@@ -84,6 +86,9 @@ class GameplayWidget(QWidget):
         self.monitor_info_label.setObjectName("MutedText")
         self.monitor_info_label.setWordWrap(True)
 
+        self._section_titles: list[QLabel] = []
+        self._compact_hidden: list[QWidget] = []
+
         self.start_button.clicked.connect(self.start_worker)
         self.stop_button.clicked.connect(self.stop_worker)
         self.refresh_button.clicked.connect(self.refresh_game_status)
@@ -94,6 +99,7 @@ class GameplayWidget(QWidget):
         input_row.addWidget(self.chat_input, stretch=1)
         input_row.addWidget(self.translate_button)
         input_row.addWidget(self.voice_button)
+        self._input_row_widgets = [self.chat_input, self.translate_button, self.voice_button]
 
         auto_row = QHBoxLayout()
         auto_row.addWidget(self.start_button)
@@ -112,14 +118,31 @@ class GameplayWidget(QWidget):
         layout.addWidget(self.game_status)
         layout.addWidget(self.provider_label)
         layout.addWidget(self.monitor_info_label)
-        layout.addWidget(self._section_title("CHAT — TEST & TRADUCTIONS LIVE"))
+
+        chat_title = self._section_title("TRADUCTIONS LIVE")
+        layout.addWidget(chat_title)
         layout.addWidget(chat_panel)
         layout.addLayout(input_row)
-        layout.addWidget(self._section_title("SURVEILLANCE CHAT DIABLO (OCR)"))
+
+        monitor_title = self._section_title("SURVEILLANCE OCR")
+        layout.addWidget(monitor_title)
         layout.addLayout(auto_row)
         layout.addWidget(self.auto_status_label)
         layout.addWidget(self.last_translation_label)
         self.setLayout(layout)
+
+        self._section_titles = [chat_title, monitor_title]
+        self._compact_hidden = [
+            self.game_status,
+            self.provider_label,
+            self.monitor_info_label,
+            self.start_button,
+            self.stop_button,
+            self.refresh_button,
+            self.auto_status_label,
+            self.last_translation_label,
+            *self._section_titles,
+        ]
 
         self._timer = QTimer(self)
         self._timer.setInterval(2000)
@@ -128,11 +151,47 @@ class GameplayWidget(QWidget):
 
         self.refresh_game_status()
         self._refresh_provider_label()
-        self._append_system_message(
-            "Chat auto : message étranger → traduction FR affichée ici. "
-            "Vous écrivez en français → traduction vers la langue du joueur "
-            f"({self.container.pipeline.translator.reply_language_label()} par défaut)."
-        )
+
+    def set_compact_mode(self, enabled: bool) -> None:
+        for widget in self._compact_hidden:
+            widget.setVisible(not enabled)
+
+        self.chat_log.setMinimumHeight(140 if enabled else 260)
+        self._apply_ingame_mode()
+        self._apply_welcome_message(enabled)
+
+    def _apply_ingame_mode(self) -> None:
+        ingame = self.controller.app_config.ingame_only_mode
+        compact = self.controller.app_config.overlay_compact
+        hide_input = ingame or compact
+
+        for widget in self._input_row_widgets:
+            widget.setVisible(not hide_input)
+
+        if hide_input and ingame:
+            self.chat_input.setPlaceholderText("")
+        elif not hide_input:
+            self.chat_input.setPlaceholderText(
+                "Écrivez en français → traduction auto (Ctrl+Entrée)"
+            )
+
+        self.translate_button.setText(" →" if compact else " Traduire")
+        self.voice_button.setVisible(not hide_input)
+
+    def _apply_welcome_message(self, compact: bool) -> None:
+        if not compact or self.chat_log.toPlainText().strip():
+            return
+
+        if self.controller.app_config.ingame_only_mode:
+            self._append_chat_html(
+                '<span style="color:#d4af37;font-weight:700;">Mode In-Game</span> '
+                '<span style="color:#8a8278;">— traductions du chat Diablo ici. '
+                'Cliquez « Surveiller chat » si rien n’apparaît.</span>'
+            )
+        else:
+            self._append_chat_html(
+                '<span style="color:#8a8278;">Traductions du chat Diablo ici</span>'
+            )
 
     def _setup_shortcuts(self) -> None:
         # Raccourcis actifs seulement hors champs de saisie (WidgetShortcut).
@@ -178,7 +237,7 @@ class GameplayWidget(QWidget):
         self.chat_input.clear()
 
         try:
-            result = self.container.pipeline.process_text(text, origin="user")
+            result = self.controller.translate_user_message(text)
         except Exception as exc:
             self._append_chat_line("Erreur", str(exc), "#c0392b")
             return
@@ -190,8 +249,8 @@ class GameplayWidget(QWidget):
         if self._voice_busy:
             return
 
-        if self.container.speech_input.is_listening:
-            self.container.speech_input.stop()
+        if self.controller.speech_input.is_listening:
+            self.controller.speech_input.stop()
             self._reset_voice_button()
             self._append_system_message("Microphone désactivé.")
             return
@@ -203,10 +262,10 @@ class GameplayWidget(QWidget):
             return
 
         self._voice_busy = True
-        started = self.container.speech_input.start()
+        started = self.controller.speech_input.start()
         self._voice_busy = False
 
-        if not started or not self.container.speech_input.is_listening:
+        if not started or not self.controller.speech_input.is_listening:
             self._reset_voice_button()
             return
 
@@ -222,32 +281,25 @@ class GameplayWidget(QWidget):
         if self.worker.is_running:
             return
 
-        status = self.container.game_detection.scan()
-        if not status.is_any_running:
-            if not auto:
-                self._append_system_message(
-                    "Aucun jeu Diablo détecté. Lancez D3, D4 ou Immortal."
-                )
+        error = self.controller.start_monitoring(auto=auto)
+        if error:
+            self._append_system_message(error)
             return
 
-        if not self.container.config.chat_monitor_enabled:
-            if not auto:
-                self._append_system_message(
-                    "Activez « Surveiller chat en direct » dans les paramètres."
-                )
-            return
-
-        self.worker.start()
+        status = self.controller.scan_games()
         self.auto_status_label.setText(
             f"Surveillance chat : active ({status.summary()})"
         )
-        self._append_system_message(
-            f"Surveillance OCR démarrée — {status.summary()}"
-        )
+        if not auto:
+            self._append_system_message(
+                f"Surveillance OCR démarrée — {status.summary()}"
+            )
+        elif self.controller.app_config.overlay_compact:
+            self._append_overlay_status("OCR actif — lecture du chat Diablo…")
         self._notify_status_update()
 
     def stop_worker(self) -> None:
-        self.worker.stop()
+        self.controller.stop_monitoring()
         self.auto_status_label.setText("Surveillance chat : arrêtée")
         self._append_system_message("Surveillance chat arrêtée.")
         self._notify_status_update()
@@ -259,7 +311,7 @@ class GameplayWidget(QWidget):
         speaker: str = "Chat",
     ) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
-        translator = self.container.pipeline.translator
+        translator = self.controller.pipeline.translator
 
         if result.preserved_mixed:
             self._append_chat_line(speaker, result.source_text, "#e8dcc8")
@@ -277,15 +329,26 @@ class GameplayWidget(QWidget):
 
         if result.outgoing:
             target_label = translator.language_display_name(result.target_language)
-            self._append_chat_html(
-                f'<span style="color:#6b5f52;">[{timestamp}]</span> '
-                f'<span style="color:#64b5f6;font-weight:700;">[Vous → {target_label}]</span> '
-                f'<span style="color:#ffffff;font-size:105%;">'
-                f'{self._escape_html(result.translated_text)}</span><br/>'
-                f'<span style="color:#6b5f52;font-size:92%;">'
-                f'{self._escape_html(result.source_text)}</span>'
-            )
-            self._copy_to_clipboard(result.translated_text)
+            compact = self.controller.app_config.overlay_compact
+            if compact:
+                self._append_chat_html(
+                    f'<span style="color:#64b5f6;font-weight:700;">Vous → {target_label}</span> '
+                    f'<span style="color:#ffffff;font-size:108%;">'
+                    f'{self._escape_html(result.translated_text)}</span><br/>'
+                    f'<span style="color:#6b5f52;font-size:88%;">'
+                    f'{self._escape_html(result.source_text)}</span>'
+                )
+            else:
+                self._append_chat_html(
+                    f'<span style="color:#6b5f52;">[{timestamp}]</span> '
+                    f'<span style="color:#64b5f6;font-weight:700;">[Vous → {target_label}]</span> '
+                    f'<span style="color:#ffffff;font-size:105%;">'
+                    f'{self._escape_html(result.translated_text)}</span><br/>'
+                    f'<span style="color:#6b5f52;font-size:92%;">'
+                    f'{self._escape_html(result.source_text)}</span>'
+                )
+            if self.controller.app_config.auto_copy_outgoing:
+                self._copy_to_clipboard(result.translated_text)
             self.last_translation_label.setText(
                 f"Réponse à coller en {target_label} : {result.translated_text}"
             )
@@ -293,27 +356,69 @@ class GameplayWidget(QWidget):
             return
 
         source_label = translator.language_display_name(result.source_language)
-        self._append_chat_html(
-            f'<span style="color:#6b5f52;">[{timestamp}]</span> '
-            f'<span style="color:#7cb342;font-weight:700;">[Chat FR]</span> '
-            f'<span style="color:#ffffff;font-size:105%;">'
-            f'{self._escape_html(result.translated_text)}</span><br/>'
-            f'<span style="color:#6b5f52;font-size:92%;">'
-            f'{self._escape_html(result.source_text)} '
-            f'({source_label})</span>'
-        )
+        if self.controller.app_config.overlay_compact:
+            self._append_chat_html(
+                f'<span style="color:#ffffff;font-size:110%;">'
+                f'{self._escape_html(result.translated_text)}</span> '
+                f'<span style="color:#6b5f52;font-size:88%;">'
+                f'← {self._escape_html(result.source_text)}</span>'
+            )
+        else:
+            self._append_chat_html(
+                f'<span style="color:#6b5f52;">[{timestamp}]</span> '
+                f'<span style="color:#7cb342;font-weight:700;">[Chat FR]</span> '
+                f'<span style="color:#ffffff;font-size:105%;">'
+                f'{self._escape_html(result.translated_text)}</span><br/>'
+                f'<span style="color:#6b5f52;font-size:92%;">'
+                f'{self._escape_html(result.source_text)} '
+                f'({source_label})</span>'
+            )
         self.last_translation_label.setText(
             f"Dernier message : {result.source_text} → {result.translated_text}"
         )
         self._refresh_provider_label()
 
     def show_live_translation(self, result: TranslationResult) -> None:
-        self.display_translation_result(result, speaker="Chat jeu")
+        speaker = "Vous (Diablo)" if result.outgoing else "Chat jeu"
+        self.display_translation_result(result, speaker=speaker)
+
+    def update_ocr_status(self, status) -> None:
+        if not self.worker.is_running:
+            return
+
+        if status.last_error:
+            self._append_overlay_status(f"OCR erreur : {status.last_error}", error=True)
+            return
+
+        if not self.controller.app_config.overlay_compact:
+            self.auto_status_label.setText(
+                f"OCR : {status.ocr_line_count} lignes · "
+                f"{status.new_message_count} nouveau(x) · preset {status.preset_key}"
+            )
+            return
+
+        if status.new_message_count:
+            return
+
+        if status.ocr_line_count == 0:
+            message = (
+                "OCR : aucun texte lu — preset 1080p, fermez Contacts, "
+                "1 seule instance ouverte"
+            )
+        else:
+            message = (
+                f"OCR actif ({status.ocr_line_count} lignes, preset {status.preset_key})"
+            )
+
+        if message == self._last_ocr_status_message:
+            return
+        self._last_ocr_status_message = message
+        self._append_overlay_status(message, error=status.ocr_line_count == 0)
 
     def handle_voice_result(self, payload) -> None:
         if isinstance(payload, str) and payload.startswith("__ERROR__:"):
             self._reset_voice_button()
-            self.container.speech_input.stop()
+            self.controller.speech_input.stop()
             self._append_chat_line(
                 "Erreur",
                 payload.replace("__ERROR__:", ""),
@@ -325,19 +430,19 @@ class GameplayWidget(QWidget):
             self.display_translation_result(payload, speaker="Voix")
 
     def refresh_game_status(self) -> None:
-        status = self.container.game_detection.scan()
+        status = self.controller.scan_games()
         self.game_status.update_status(status)
         self._refresh_provider_label()
 
         monitor_mode = (
             "OCR zone chat (coin inférieur gauche)"
-            if self.container.config.chat_monitor_enabled
+            if self.controller.app_config.chat_monitor_enabled
             else "OCR plein écran"
         )
         self.monitor_info_label.setText(
-            f"Mode : {monitor_mode} · Chat étranger → FR · "
-            f"Vos réponses FR → {self.container.pipeline.translator.reply_language_label()} · "
-            f"Détection : {'ON' if self.container.config.auto_detect_language else 'OFF'}"
+            f"Mode : {monitor_mode} · {self.controller.monitor_mode_label()} · "
+            f"In-game : {'ON' if self.controller.app_config.ingame_only_mode else 'OFF'} · "
+            f"Joueur : {self.controller.player_label()}"
         )
 
         if self.worker.is_running and status.is_any_running:
@@ -348,19 +453,12 @@ class GameplayWidget(QWidget):
         self._notify_status_update()
 
     def _refresh_provider_label(self) -> None:
-        provider = self.container.pipeline.translator.provider_name.upper()
-        cache = self.container.pipeline.cache.stats
-        reply_label = self.container.pipeline.translator.reply_language_label()
-        peer = self.container.pipeline.conversation.last_foreign_language
-        mode = (
-            f"Chat → FR · Vous → {reply_label}"
-            if self.container.config.bidirectional_mode
-            else f"Langue cible : {self.container.config.language.upper()}"
-        )
-        if peer:
-            mode += f" (dernier chat : {self.container.pipeline.translator.language_display_name(peer)})"
+        summary = self.controller.provider_summary()
+        mode = summary.mode
+        if summary.peer_label:
+            mode += f" (dernier chat : {summary.peer_label})"
         self.provider_label.setText(
-            f"{mode} · Moteur : {provider} · Cache : {cache.entries} entrées"
+            f"{mode} · Moteur : {summary.provider} · Cache : {summary.cache_entries} entrées"
         )
 
     def _notify_status_update(self) -> None:
@@ -389,7 +487,17 @@ class GameplayWidget(QWidget):
             pass
 
     def _append_system_message(self, message: str) -> None:
+        if self.controller.app_config.overlay_compact:
+            return
         self._append_chat_line("Système", message, "#8a8278")
+
+    def _append_overlay_status(self, message: str, *, error: bool = False) -> None:
+        if not self.controller.app_config.overlay_compact:
+            return
+        color = "#c0392b" if error else "#8a8278"
+        self._append_chat_html(
+            f'<span style="color:{color};font-size:90%;">[OCR] {self._escape_html(message)}</span>'
+        )
 
     @staticmethod
     def _escape_html(value: str) -> str:
@@ -400,5 +508,5 @@ class GameplayWidget(QWidget):
         )
 
     def shutdown(self) -> None:
-        self.container.speech_input.stop()
-        self.worker.stop()
+        self.controller.speech_input.stop()
+        self.controller.stop_monitoring()

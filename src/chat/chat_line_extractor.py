@@ -9,6 +9,15 @@ class ChatLineExtractor:
         r"^(system|party|clan|whisper|trade|global)\s*:?",
         re.IGNORECASE,
     )
+    _LOOT_PATTERN = re.compile(
+        r"\b(a forgé|a obtenu le butin|has crafted|crafted|dropped|ramassé|picked up|"
+        r"légendaire|legendary|primordial|set ancien)\b",
+        re.I,
+    )
+    _CHAT_INPUT = re.compile(
+        r"^\[(?:<[^>]+>\s*)?[^\]]+\]\s*\|?\s*$",
+        re.I,
+    )
 
     def extract_new_lines(
         self,
@@ -22,13 +31,14 @@ class ChatLineExtractor:
             return []
 
         if not previous_lines:
-            return self._filter_chat_lines(current_lines[-3:])
+            return self._filter_chat_lines(current_lines[-4:])
 
         new_lines: list[str] = []
-        previous_set = set(previous_lines)
+        previous_set = {self._fingerprint(line) for line in previous_lines}
 
         for line in current_lines:
-            if line not in previous_set:
+            fingerprint = self._fingerprint(line)
+            if fingerprint not in previous_set:
                 new_lines.append(line)
 
         if not new_lines and current_lines[-1] != previous_lines[-1]:
@@ -40,6 +50,7 @@ class ChatLineExtractor:
         lines = []
         for raw_line in text.splitlines():
             cleaned = " ".join(raw_line.split()).strip()
+            cleaned = cleaned.replace("|", "l").replace("»", ":").replace("›", ":")
             if cleaned:
                 lines.append(cleaned)
         return lines
@@ -54,9 +65,26 @@ class ChatLineExtractor:
                 continue
             if self._looks_like_ui_noise(line):
                 continue
+            if self._CHAT_INPUT.match(line):
+                continue
+            if self._LOOT_PATTERN.search(line) and not self._has_dialogue_marker(line):
+                continue
             filtered.append(line)
 
         return filtered
+
+    @staticmethod
+    def _has_dialogue_marker(line: str) -> bool:
+        lowered = line.lower()
+        return any(
+            token in lowered
+            for token in (" dit :", " says :", " chuchote :", " whisper :")
+        )
+
+    @staticmethod
+    def _fingerprint(line: str) -> str:
+        normalized = re.sub(r"[^\w\s:]", "", line.lower())
+        return " ".join(normalized.split())
 
     @staticmethod
     def _looks_like_ui_noise(line: str) -> bool:
@@ -68,5 +96,9 @@ class ChatLineExtractor:
             "menu",
             "options",
             "settings",
+            "inventaire",
+            "inventory",
+            "forger",
+            "forge",
         )
         return any(token in lowered for token in noise_tokens)

@@ -190,3 +190,75 @@ QToolTip {
     border: 1px solid #5c4a32;
     padding: 6px;
 }
+
+QDialog#SettingsDialog {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0f0d0b,
+        stop:1 #15110d
+    );
+}
+
+QListWidget#SettingsSidebar {
+    background-color: #12100e;
+    border: 1px solid #3d3428;
+    border-radius: 6px;
+    padding: 6px;
+    outline: none;
+}
+
+QListWidget#SettingsSidebar::item {
+    color: #c9a24d;
+    padding: 12px 10px;
+    border-radius: 4px;
+    margin: 2px 0;
+}
+
+QListWidget#SettingsSidebar::item:selected {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:1, y2:0,
+        stop:0 #5c4a32,
+        stop:1 #3d3428
+    );
+    color: #fff8e7;
+    font-weight: 600;
+}
+
+QListWidget#SettingsSidebar::item:hover {
+    background-color: #1a1510;
+}
+
+QWidget#WindowTitleBar {
+    background-color: #1a1510;
+    border-bottom: 1px solid #3d3428;
+}
+
+QLabel#WindowTitleText {
+    color: #e8dcc8;
+    font-weight: 600;
+}
+
+QPushButton#WindowControlButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    color: #c9a24d;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+QPushButton#WindowControlButton:hover {
+    background-color: #2a2218;
+    color: #f5e6c8;
+}
+
+QPushButton#WindowCloseButton:hover {
+    background-color: #8b1a1a;
+    color: #ffffff;
+}
+
+QSizeGrip {
+    width: 14px;
+    height: 14px;
+}

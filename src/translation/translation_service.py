@@ -57,6 +57,7 @@ class TranslationService:
 
         if (
             self._config.preserve_mixed_language
+            and origin in {"user", "voice"}
             and self._language_detector.is_mixed_language(cleaned)
         ):
             return TranslationResult(

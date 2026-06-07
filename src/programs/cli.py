@@ -4,6 +4,38 @@ import argparse
 from pathlib import Path
 
 
+def run_build_verify() -> int:
+    """Smoke test pour build PyInstaller (exit 0 = OK)."""
+    modules = (
+        "PyQt6.QtWidgets",
+        "cv2",
+        "easyocr",
+        "torch",
+        "mss",
+        "psutil",
+        "langdetect",
+        "deep_translator",
+        "src.infrastructure.container",
+        "src.application.live_chat_service",
+        "src.capture.capture_region_resolver",
+    )
+    failed: list[str] = []
+    for name in modules:
+        try:
+            __import__(name)
+        except Exception as exc:
+            failed.append(f"{name}: {exc}")
+
+    if failed:
+        print("VERIFY FAILED")
+        for line in failed:
+            print(f"  - {line}")
+        return 1
+
+    print("VERIFY OK — modules critiques + DLL chargeables")
+    return 0
+
+
 def run_translate(text: str) -> int:
     try:
         from src.infrastructure.container import Container
@@ -79,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("gui", help="Lancer l'interface graphique")
     sub.add_parser("check", help="Vérifier les dépendances")
+    sub.add_parser("verify", help="Vérification build exe (modules critiques)")
     sub.add_parser("game", help="Détecter Diablo III, IV ou Immortal")
     sub.add_parser("stats", help="Afficher les statistiques")
     sub.add_parser("test", help="Lancer les tests unitaires")
@@ -110,6 +143,9 @@ def dispatch(args: argparse.Namespace) -> int:
         from src.programs.dependency_checker import print_dependency_report
 
         return print_dependency_report()
+
+    if command == "verify":
+        return run_build_verify()
 
     if command == "translate":
         return run_translate(" ".join(args.text))
