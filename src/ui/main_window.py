@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -143,9 +144,12 @@ class MainWindow(QMainWindow):
 
     def toggle_game_mode(self, enabled: bool) -> None:
         self.container.config.overlay_compact = enabled
-        self.container.config.overlay_enabled = enabled or self.container.config.overlay_enabled
-        self.container.config.always_on_top = True
-        self._always_on_top_action.setChecked(True)
+        if enabled:
+            self.container.config.overlay_enabled = True
+            self.container.config.always_on_top = True
+            self._always_on_top_action.blockSignals(True)
+            self._always_on_top_action.setChecked(True)
+            self._always_on_top_action.blockSignals(False)
         self.apply_window_behavior()
         self.update_status_bar()
 
@@ -153,12 +157,20 @@ class MainWindow(QMainWindow):
         self.container.config.always_on_top = enabled
         self.apply_window_behavior()
 
+    def _user_is_editing(self) -> bool:
+        focused = QApplication.focusWidget()
+        if focused is None:
+            return False
+
+        chat_input = self.gameplay_widget.chat_input
+        return focused is chat_input or chat_input.isAncestorOf(focused)
+
     def _on_game_timer(self) -> None:
         status = self.container.game_detection.scan()
         if not status.is_any_running:
             return
 
-        if self.container.config.auto_raise_on_game:
+        if self.container.config.auto_raise_on_game and not self._user_is_editing():
             WindowBehaviorService.raise_if_game_mode(self, self.container.config)
 
         if (
@@ -166,7 +178,7 @@ class MainWindow(QMainWindow):
             and not self.container.worker.is_running
             and self.container.config.chat_monitor_enabled
         ):
-            self.gameplay_widget.start_worker()
+            self.gameplay_widget.start_worker(auto=True)
 
     def _build_header(self) -> QHBoxLayout:
         title = QLabel("DIABLO TRANSLATOR")
@@ -260,7 +272,8 @@ class MainWindow(QMainWindow):
     def on_live_translation(self, result: TranslationResult) -> None:
         self.gameplay_widget.show_live_translation(result)
         self.update_status_bar()
-        WindowBehaviorService.raise_if_game_mode(self, self.container.config)
+        if not self._user_is_editing():
+            WindowBehaviorService.raise_if_game_mode(self, self.container.config)
 
     def on_voice_result(self, payload) -> None:
         self.gameplay_widget.handle_voice_result(payload)

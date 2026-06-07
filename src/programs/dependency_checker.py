@@ -11,6 +11,11 @@ REQUIRED_PACKAGES = (
     "psutil",
 )
 
+VOICE_PACKAGES = (
+    ("speech_recognition", "SpeechRecognition"),
+    ("pyaudio", "PyAudio"),
+)
+
 
 @dataclass(slots=True)
 class DependencyStatus:
@@ -18,6 +23,7 @@ class DependencyStatus:
     name: str
     installed: bool
     error: str | None = None
+    optional: bool = False
 
 
 def check_dependencies() -> list[DependencyStatus]:
@@ -36,24 +42,52 @@ def check_dependencies() -> list[DependencyStatus]:
                 )
             )
 
+    for import_name, label in VOICE_PACKAGES:
+        try:
+            __import__(import_name)
+            results.append(
+                DependencyStatus(name=label, installed=True, optional=True)
+            )
+        except ModuleNotFoundError as exc:
+            results.append(
+                DependencyStatus(
+                    name=label,
+                    installed=False,
+                    error=str(exc),
+                    optional=True,
+                )
+            )
+
     return results
 
 
 def missing_dependencies() -> list[str]:
-    return [item.name for item in check_dependencies() if not item.installed]
+    return [
+        item.name
+        for item in check_dependencies()
+        if not item.installed and not item.optional
+    ]
 
 
 def print_dependency_report() -> int:
     statuses = check_dependencies()
-    missing = [item for item in statuses if not item.installed]
+    missing = [item for item in statuses if not item.installed and not item.optional]
+    voice_missing = [item for item in statuses if not item.installed and item.optional]
 
     for item in statuses:
         state = "OK" if item.installed else "MANQUANT"
-        print(f"[{state}] {item.name}")
+        suffix = " (optionnel · micro)" if item.optional else ""
+        print(f"[{state}] {item.name}{suffix}")
 
     if missing:
         print("\nInstallez les dépendances : pip install -r requirements.txt")
         return 1
 
-    print("\nToutes les dépendances sont installées.")
+    if voice_missing:
+        print(
+            "\nMicro désactivé tant que ces paquets ne sont pas installés : "
+            "pip install SpeechRecognition pyaudio"
+        )
+
+    print("\nToutes les dépendances principales sont installées.")
     return 0

@@ -246,7 +246,16 @@ powershell -ExecutionPolicy Bypass -File build/create_desktop_shortcut.ps1
 ```
 
 **Le micro ne répond pas ?**  
-Installez `pyaudio` et autorisez l'accès micro dans Windows.
+Installez les dépendances vocales puis vérifiez :
+```bash
+pip install SpeechRecognition pyaudio
+python launcher.py check
+```
+Sur Windows, si `pyaudio` échoue : `pip install pipwin && pipwin install pyaudio`  
+Autorisez aussi l'accès micro dans les paramètres Windows.
+
+**La saisie dans le chat bug ou perd le focus ?**  
+Désactivez « Remonter automatiquement » dans Paramètres → Overlay si vous tapez souvent dans le champ de test.
 
 **Les modèles OCR sont lents au premier lancement ?**  
 Normal : EasyOCR télécharge les modèles dans `models/` une seule fois.

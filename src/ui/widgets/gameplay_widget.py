@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QFrame,
@@ -19,6 +19,7 @@ from src.domain.models.translation_result import TranslationResult
 from src.infrastructure.asset_manager import AssetManager
 from src.infrastructure.container import Container
 from src.ui.widgets.game_status_panel import GameStatusPanel
+from src.voice.speech_service import SpeechInputService
 
 
 class GameplayWidget(QWidget):
@@ -49,6 +50,8 @@ class GameplayWidget(QWidget):
             "Tapez un message de chat pour tester la traduction..."
         )
         self.chat_input.returnPressed.connect(self.translate_chat_message)
+
+        self._voice_busy = False
 
         self.translate_button = QPushButton(" Traduire")
         self.translate_button.setObjectName("PrimaryButton")
@@ -130,9 +133,17 @@ class GameplayWidget(QWidget):
         )
 
     def _setup_shortcuts(self) -> None:
-        QShortcut(QKeySequence("Ctrl+Return"), self, self.translate_chat_message)
-        QShortcut(QKeySequence("Ctrl+M"), self, self.toggle_voice_input)
-        QShortcut(QKeySequence("F5"), self, self.refresh_game_status)
+        translate_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
+        translate_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        translate_shortcut.activated.connect(self.translate_chat_message)
+
+        voice_shortcut = QShortcut(QKeySequence("Ctrl+M"), self)
+        voice_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        voice_shortcut.activated.connect(self.toggle_voice_input)
+
+        refresh_shortcut = QShortcut(QKeySequence("F5"), self)
+        refresh_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        refresh_shortcut.activated.connect(self.refresh_game_status)
 
     @staticmethod
     def _section_title(text: str) -> QLabel:
@@ -157,30 +168,54 @@ class GameplayWidget(QWidget):
         self._notify_status_update()
 
     def toggle_voice_input(self) -> None:
+        if self._voice_busy:
+            return
+
         if self.container.speech_input.is_listening:
             self.container.speech_input.stop()
-            self.voice_button.setText(" Micro")
+            self._reset_voice_button()
             self._append_system_message("Microphone désactivé.")
             return
 
-        self.container.speech_input.start()
+        available, error = SpeechInputService.check_availability()
+        if not available:
+            self._reset_voice_button()
+            self._append_chat_line("Erreur", error, "#c0392b")
+            return
+
+        self._voice_busy = True
+        started = self.container.speech_input.start()
+        self._voice_busy = False
+
+        if not started or not self.container.speech_input.is_listening:
+            self._reset_voice_button()
+            return
+
         self.voice_button.setText(" Micro ON")
         self._append_system_message(
             "Microphone actif — parlez pour traduire automatiquement."
         )
 
-    def start_worker(self) -> None:
+    def _reset_voice_button(self) -> None:
+        self.voice_button.setText(" Micro")
+
+    def start_worker(self, *, auto: bool = False) -> None:
+        if self.worker.is_running:
+            return
+
         status = self.container.game_detection.scan()
         if not status.is_any_running:
-            self._append_system_message(
-                "Aucun jeu Diablo détecté. Lancez D3, D4 ou Immortal."
-            )
+            if not auto:
+                self._append_system_message(
+                    "Aucun jeu Diablo détecté. Lancez D3, D4 ou Immortal."
+                )
             return
 
         if not self.container.config.chat_monitor_enabled:
-            self._append_system_message(
-                "Activez « Surveiller chat en direct » dans les paramètres."
-            )
+            if not auto:
+                self._append_system_message(
+                    "Activez « Surveiller chat en direct » dans les paramètres."
+                )
             return
 
         self.worker.start()
@@ -233,6 +268,8 @@ class GameplayWidget(QWidget):
 
     def handle_voice_result(self, payload) -> None:
         if isinstance(payload, str) and payload.startswith("__ERROR__:"):
+            self._reset_voice_button()
+            self.container.speech_input.stop()
             self._append_chat_line(
                 "Erreur",
                 payload.replace("__ERROR__:", ""),

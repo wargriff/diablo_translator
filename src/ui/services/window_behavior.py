@@ -32,7 +32,18 @@ class WindowBehaviorService:
     }
 
     @classmethod
+    def raise_if_game_mode(cls, window: QMainWindow, config: AppConfig) -> None:
+        if not config.auto_raise_on_game:
+            return
+
+        if not (config.always_on_top or config.overlay_compact):
+            return
+
+        window.raise_()
+
+    @classmethod
     def apply(cls, window: QMainWindow, config: AppConfig) -> None:
+        focused = QApplication.focusWidget()
         cls._apply_flags(window, config)
         cls._apply_opacity(window, config)
         cls._apply_geometry(window, config)
@@ -40,21 +51,15 @@ class WindowBehaviorService:
         cls._apply_click_through(window, config)
         window.show()
 
-    @classmethod
-    def raise_if_game_mode(cls, window: QMainWindow, config: AppConfig) -> None:
-        if not config.auto_raise_on_game:
-            return
-
-        if config.always_on_top or config.overlay_enabled:
-            window.raise_()
-            window.activateWindow()
+        if focused is not None and focused.isEnabled():
+            focused.setFocus(Qt.FocusReason.OtherFocusReason)
 
     @staticmethod
     def _apply_flags(window: QMainWindow, config: AppConfig) -> None:
         flags = window.windowFlags()
         flags |= Qt.WindowType.Window
 
-        if config.always_on_top or config.overlay_enabled:
+        if config.always_on_top or config.overlay_compact:
             flags |= Qt.WindowType.WindowStaysOnTopHint
         else:
             flags &= ~Qt.WindowType.WindowStaysOnTopHint

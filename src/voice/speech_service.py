@@ -22,27 +22,57 @@ class SpeechInputService:
     def is_listening(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
 
-    def start(self) -> None:
+    @classmethod
+    def check_availability(cls) -> tuple[bool, str]:
+        try:
+            import speech_recognition  # noqa: F401
+        except ModuleNotFoundError:
+            return (
+                False,
+                "SpeechRecognition manquant — lancez : pip install SpeechRecognition pyaudio",
+            )
+
+        try:
+            import pyaudio  # noqa: F401
+        except ModuleNotFoundError:
+            return (
+                False,
+                "PyAudio manquant — lancez : pip install pyaudio",
+            )
+
+        return True, ""
+
+    def start(self) -> bool:
         if self.is_listening:
-            return
+            return True
+
+        available, error = self.check_availability()
+        if not available:
+            if self._on_text:
+                self._on_text(f"__ERROR__:{error}")
+            return False
 
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._listen_loop, daemon=True)
         self._thread.start()
+        return True
 
     def stop(self) -> None:
         self._stop_event.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=1.5)
+        self._thread = None
 
     def _listen_loop(self) -> None:
-        try:
-            import speech_recognition as sr
-        except ModuleNotFoundError:
-            if self._on_text:
-                self._on_text("__ERROR__:speech_recognition non installé")
-            return
+        import speech_recognition as sr
 
         recognizer = sr.Recognizer()
-        microphone = sr.Microphone()
+        try:
+            microphone = sr.Microphone()
+        except Exception as exc:
+            if self._on_text:
+                self._on_text(f"__ERROR__:Microphone indisponible ({exc})")
+            return
 
         with microphone as source:
             recognizer.adjust_for_ambient_noise(source, duration=0.6)
@@ -55,8 +85,14 @@ class SpeechInputService:
                 text = recognizer.recognize_google(audio, language=self._language)
                 if text.strip() and self._on_text:
                     self._on_text(text.strip())
-            except Exception:
+            except sr.WaitTimeoutError:
                 continue
+            except sr.UnknownValueError:
+                continue
+            except Exception as exc:
+                if self._on_text:
+                    self._on_text(f"__ERROR__:Erreur micro ({exc})")
+                break
 
 
 class SpeechOutputService:
