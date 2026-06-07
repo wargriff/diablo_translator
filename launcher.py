@@ -13,6 +13,10 @@ def bootstrap() -> Path:
         sys.path.insert(0, root_str)
 
     os.chdir(root)
+
+    from src.infrastructure.paths import ensure_project_dirs
+
+    ensure_project_dirs()
     return root
 
 

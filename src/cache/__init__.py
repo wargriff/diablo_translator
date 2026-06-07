@@ -1,3 +1,3 @@
-from src.cache.translation_cache import TranslationCache
+from src.cache.translation_cache import CacheStats, TranslationCache
 
-__all__ = ["TranslationCache"]
+__all__ = ["CacheStats", "TranslationCache"]

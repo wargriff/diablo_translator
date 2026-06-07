@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -15,27 +15,34 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.domain.models.translation_result import TranslationResult
+from src.infrastructure.asset_manager import AssetManager
 from src.infrastructure.container import Container
 from src.ui.widgets.game_status_panel import GameStatusPanel
 
 
 class GameplayWidget(QWidget):
 
-    def __init__(self, container: Container) -> None:
+    def __init__(
+        self,
+        container: Container,
+        on_status_update=None,
+    ) -> None:
         super().__init__()
         self.setObjectName("GameplayRoot")
         self.container = container
         self.worker = container.worker
+        self._on_status_update = on_status_update
 
         self.game_status = GameStatusPanel(container)
+        self.provider_label = QLabel()
+        self.provider_label.setObjectName("MutedText")
+
         self.chat_log = QTextEdit()
         self.chat_log.setObjectName("ChatLog")
         self.chat_log.setReadOnly(True)
         self.chat_log.setMinimumHeight(260)
-
-        chat_font = QFont("Cascadia Mono", 10)
-        chat_font.setStyleHint(QFont.StyleHint.Monospace)
-        self.chat_log.setFont(chat_font)
+        self.chat_log.setFont(AssetManager.monospace_font(10))
 
         self.chat_input = QLineEdit()
         self.chat_input.setPlaceholderText(
@@ -43,28 +50,46 @@ class GameplayWidget(QWidget):
         )
         self.chat_input.returnPressed.connect(self.translate_chat_message)
 
-        self.translate_button = QPushButton("Traduire")
+        self.translate_button = QPushButton(" Traduire")
         self.translate_button.setObjectName("PrimaryButton")
+        self.translate_button.setIcon(AssetManager.icon("translate"))
+        self.translate_button.setToolTip("Traduire (Ctrl+Entrée)")
         self.translate_button.clicked.connect(self.translate_chat_message)
 
-        self.start_button = QPushButton("Démarrer capture auto")
-        self.stop_button = QPushButton("Arrêter capture")
-        self.refresh_button = QPushButton("Actualiser")
+        self.voice_button = QPushButton(" Micro")
+        self.voice_button.setIcon(AssetManager.icon("mic"))
+        self.voice_button.setToolTip("Activer/désactiver le micro (Ctrl+M)")
+        self.voice_button.clicked.connect(self.toggle_voice_input)
+
+        self.start_button = QPushButton(" Surveiller chat")
+        self.start_button.setIcon(AssetManager.icon("play"))
+        self.start_button.setToolTip("Lire le chat Diablo en direct via OCR")
+        self.stop_button = QPushButton(" Arrêter")
+        self.stop_button.setIcon(AssetManager.icon("stop"))
+        self.refresh_button = QPushButton(" Actualiser")
+        self.refresh_button.setToolTip("Actualiser l'état des jeux (F5)")
 
         self.last_translation_label = QLabel("Dernière traduction : en attente...")
         self.last_translation_label.setObjectName("MutedText")
         self.last_translation_label.setWordWrap(True)
 
-        self.auto_status_label = QLabel("Capture automatique : arrêtée")
+        self.auto_status_label = QLabel("Surveillance chat : arrêtée")
         self.auto_status_label.setObjectName("MutedText")
+
+        self.monitor_info_label = QLabel()
+        self.monitor_info_label.setObjectName("MutedText")
+        self.monitor_info_label.setWordWrap(True)
 
         self.start_button.clicked.connect(self.start_worker)
         self.stop_button.clicked.connect(self.stop_worker)
         self.refresh_button.clicked.connect(self.refresh_game_status)
 
+        self._setup_shortcuts()
+
         input_row = QHBoxLayout()
         input_row.addWidget(self.chat_input, stretch=1)
         input_row.addWidget(self.translate_button)
+        input_row.addWidget(self.voice_button)
 
         auto_row = QHBoxLayout()
         auto_row.addWidget(self.start_button)
@@ -81,10 +106,12 @@ class GameplayWidget(QWidget):
         layout = QVBoxLayout()
         layout.setSpacing(14)
         layout.addWidget(self.game_status)
-        layout.addWidget(self._section_title("CHAT — TEST DE TRADUCTION"))
+        layout.addWidget(self.provider_label)
+        layout.addWidget(self.monitor_info_label)
+        layout.addWidget(self._section_title("CHAT — TEST & TRADUCTIONS LIVE"))
         layout.addWidget(chat_panel)
         layout.addLayout(input_row)
-        layout.addWidget(self._section_title("CAPTURE AUTOMATIQUE"))
+        layout.addWidget(self._section_title("SURVEILLANCE CHAT DIABLO (OCR)"))
         layout.addLayout(auto_row)
         layout.addWidget(self.auto_status_label)
         layout.addWidget(self.last_translation_label)
@@ -96,9 +123,16 @@ class GameplayWidget(QWidget):
         self._timer.start()
 
         self.refresh_game_status()
+        self._refresh_provider_label()
         self._append_system_message(
-            "Interface prête. Écrivez dans le chat pour tester la traduction."
+            "Interface prête. Le chat du jeu est lu en direct via OCR "
+            "sur la zone inférieure gauche."
         )
+
+    def _setup_shortcuts(self) -> None:
+        QShortcut(QKeySequence("Ctrl+Return"), self, self.translate_chat_message)
+        QShortcut(QKeySequence("Ctrl+M"), self, self.toggle_voice_input)
+        QShortcut(QKeySequence("F5"), self, self.refresh_game_status)
 
     @staticmethod
     def _section_title(text: str) -> QLabel:
@@ -112,57 +146,137 @@ class GameplayWidget(QWidget):
             return
 
         self.chat_input.clear()
-        self._append_chat_line("Vous", text, "#c9a24d")
 
         try:
-            translated = self.container.pipeline.translator.translate(text)
+            result = self.container.pipeline.process_text(text)
         except Exception as exc:
             self._append_chat_line("Erreur", str(exc), "#c0392b")
             return
 
-        self.container.pipeline.cache.set(text, translated)
-        self.container.pipeline.history.add(text, translated)
-        self._append_chat_line("Traduction", translated, "#7cb342")
-        self.show_translation(text, translated)
+        self.display_translation_result(result, speaker="Vous")
+        self._notify_status_update()
+
+    def toggle_voice_input(self) -> None:
+        if self.container.speech_input.is_listening:
+            self.container.speech_input.stop()
+            self.voice_button.setText(" Micro")
+            self._append_system_message("Microphone désactivé.")
+            return
+
+        self.container.speech_input.start()
+        self.voice_button.setText(" Micro ON")
+        self._append_system_message(
+            "Microphone actif — parlez pour traduire automatiquement."
+        )
 
     def start_worker(self) -> None:
         status = self.container.game_detection.scan()
         if not status.is_any_running:
             self._append_system_message(
-                "Aucun jeu Diablo détecté. Lancez D3, D4 ou Immortal pour la capture auto."
+                "Aucun jeu Diablo détecté. Lancez D3, D4 ou Immortal."
+            )
+            return
+
+        if not self.container.config.chat_monitor_enabled:
+            self._append_system_message(
+                "Activez « Surveiller chat en direct » dans les paramètres."
             )
             return
 
         self.worker.start()
         self.auto_status_label.setText(
-            f"Capture automatique : active ({status.summary()})"
+            f"Surveillance chat : active ({status.summary()})"
         )
         self._append_system_message(
-            f"Capture démarrée — {status.summary()}"
+            f"Surveillance OCR démarrée — {status.summary()}"
         )
+        self._notify_status_update()
 
     def stop_worker(self) -> None:
         self.worker.stop()
-        self.auto_status_label.setText("Capture automatique : arrêtée")
-        self._append_system_message("Capture automatique arrêtée.")
+        self.auto_status_label.setText("Surveillance chat : arrêtée")
+        self._append_system_message("Surveillance chat arrêtée.")
+        self._notify_status_update()
 
-    def show_translation(self, source: str, translated: str) -> None:
+    def display_translation_result(
+        self,
+        result: TranslationResult,
+        *,
+        speaker: str = "Chat",
+    ) -> None:
+        source_lang = self.container.pipeline.translator.language_display_name(
+            result.source_language
+        )
+        provider = result.provider.upper()
+
+        self._append_chat_line(speaker, result.source_text, "#c9a24d")
+
+        if result.skipped:
+            self._append_chat_line(
+                "Info",
+                f"Déjà en {source_lang} — traduction ignorée",
+                "#8a8278",
+            )
+        else:
+            self._append_chat_line(
+                "Traduction",
+                f"{result.translated_text} [{source_lang} → {result.target_language} · {provider}]",
+                "#7cb342",
+            )
+
         self.last_translation_label.setText(
-            f"Dernière traduction : {source} → {translated}"
+            f"Dernière traduction : {result.source_text} → {result.display_text}"
         )
 
-    def show_live_translation(self, translated: str) -> None:
-        self.last_translation_label.setText(f"Dernière capture OCR : {translated}")
-        self._append_chat_line("Capture", translated, "#8ab4f8")
+    def show_live_translation(self, result: TranslationResult) -> None:
+        self.display_translation_result(result, speaker="Chat jeu")
+
+    def handle_voice_result(self, payload) -> None:
+        if isinstance(payload, str) and payload.startswith("__ERROR__:"):
+            self._append_chat_line(
+                "Erreur",
+                payload.replace("__ERROR__:", ""),
+                "#c0392b",
+            )
+            return
+
+        if isinstance(payload, TranslationResult):
+            self.display_translation_result(payload, speaker="Voix")
 
     def refresh_game_status(self) -> None:
         status = self.container.game_detection.scan()
         self.game_status.update_status(status)
+        self._refresh_provider_label()
+
+        monitor_mode = (
+            "OCR zone chat (coin inférieur gauche)"
+            if self.container.config.chat_monitor_enabled
+            else "OCR plein écran"
+        )
+        self.monitor_info_label.setText(
+            f"Mode : {monitor_mode} · Moteur : {self.container.config.translator.upper()} · "
+            f"Détection langue : {'ON' if self.container.config.auto_detect_language else 'OFF'}"
+        )
 
         if self.worker.is_running and status.is_any_running:
             self.auto_status_label.setText(
-                f"Capture automatique : active ({status.summary()})"
+                f"Surveillance chat : active ({status.summary()})"
             )
+
+        self._notify_status_update()
+
+    def _refresh_provider_label(self) -> None:
+        provider = self.container.pipeline.translator.provider_name.upper()
+        target = self.container.config.language.upper()
+        cache = self.container.pipeline.cache.stats
+        self.provider_label.setText(
+            f"Moteur : {provider} · Langue cible : {target} · "
+            f"Cache disque : {cache.entries} entrées"
+        )
+
+    def _notify_status_update(self) -> None:
+        if self._on_status_update:
+            self._on_status_update()
 
     def _append_chat_line(self, speaker: str, message: str, color: str) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -182,3 +296,7 @@ class GameplayWidget(QWidget):
             .replace("<", "&lt;")
             .replace(">", "&gt;")
         )
+
+    def shutdown(self) -> None:
+        self.container.speech_input.stop()
+        self.worker.stop()

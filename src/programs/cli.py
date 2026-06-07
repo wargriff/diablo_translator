@@ -9,13 +9,17 @@ def run_translate(text: str) -> int:
         from src.infrastructure.container import Container
 
         container = Container()
-        translated = container.pipeline.translator.translate(text)
+        result = container.pipeline.process_text(text)
     except ModuleNotFoundError as exc:
         print(f"Dépendance manquante : {exc.name}")
         print("Installez les dépendances : pip install -r requirements.txt")
         return 1
 
-    print(translated)
+    if result.source_language:
+        lang = container.pipeline.translator.language_display_name(result.source_language)
+        print(f"[{lang}] {result.source_text}")
+    print(result.display_text)
+    print(f"(moteur: {result.provider})")
     return 0
 
 
@@ -77,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("check", help="Vérifier les dépendances")
     sub.add_parser("game", help="Détecter Diablo III, IV ou Immortal")
     sub.add_parser("stats", help="Afficher les statistiques")
+    sub.add_parser("test", help="Lancer les tests unitaires")
 
     translate = sub.add_parser("translate", help="Traduire un texte")
     translate.add_argument("text", nargs="+", help="Texte à traduire")
@@ -117,6 +122,11 @@ def dispatch(args: argparse.Namespace) -> int:
 
     if command == "stats":
         return run_analytics()
+
+    if command == "test":
+        from tests.run_tests import run_tests
+
+        return run_tests()
 
     if command == "gui":
         missing = []

@@ -12,8 +12,15 @@ class AppConfig:
     overlay_opacity: float = 0.85
     capture_fps: int = 2
     translator: str = "google"
+    deepl_api_key: str = ""
     ocr_engine: str = "easyocr"
+    ocr_languages: str = "en,fr,de,es"
     low_cpu_mode: bool = False
+    auto_detect_language: bool = True
+    chat_monitor_enabled: bool = True
+    chat_region_preset: str = "auto"
+    voice_input_enabled: bool = False
+    speak_translation: bool = False
 
 
 class ConfigManager:
@@ -28,7 +35,9 @@ class ConfigManager:
         with open(cls.CONFIG_PATH, encoding="utf-8") as file:
             data = json.load(file)
 
-        return AppConfig(**data)
+        known_fields = {field.name for field in AppConfig.__dataclass_fields__.values()}
+        filtered = {key: value for key, value in data.items() if key in known_fields}
+        return AppConfig(**filtered)
 
     @classmethod
     def save(cls, config: AppConfig) -> None:

@@ -4,13 +4,15 @@ import threading
 import time
 from collections.abc import Callable
 
+from src.domain.models.translation_result import TranslationResult
+
 
 class TranslationWorker:
 
     def __init__(
         self,
         container,
-        on_translation: Callable[[str], None] | None = None,
+        on_translation: Callable[[TranslationResult], None] | None = None,
     ) -> None:
         self._container = container
         self._on_translation = on_translation
@@ -25,6 +27,7 @@ class TranslationWorker:
         if self.is_running:
             return
 
+        self._container.chat_monitor.reset()
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
@@ -41,10 +44,37 @@ class TranslationWorker:
                 time.sleep(1.0)
                 continue
 
-            image = self._container.capture.capture_monitor()
-            translated = self._container.pipeline.process_image(image)
-
-            if translated and self._on_translation:
-                self._on_translation(translated)
+            if self._container.config.chat_monitor_enabled:
+                self._run_chat_monitor()
+            else:
+                self._run_full_screen()
 
             time.sleep(delay)
+
+    def _run_chat_monitor(self) -> None:
+        capture = self._container.chat_monitor.capture_chat(
+            self._container.capture,
+            self._container.game_detection,
+            self._container.config.chat_region_preset,
+            self._container.pipeline.ocr,
+        )
+
+        for line in capture.new_lines:
+            result = self._container.pipeline.process_text(line)
+            self._emit_result(result)
+
+    def _run_full_screen(self) -> None:
+        image = self._container.capture.capture_monitor()
+        result = self._container.pipeline.process_image(image)
+
+        if result.translated_text:
+            self._emit_result(result)
+
+    def _emit_result(self, result: TranslationResult) -> None:
+        if not self._on_translation or not result.translated_text:
+            return
+
+        self._on_translation(result)
+
+        if self._container.config.speak_translation:
+            self._container.speech_output.speak(result.display_text)
