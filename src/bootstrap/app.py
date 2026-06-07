@@ -1,29 +1,20 @@
-
 import sys
 
 from PyQt6.QtWidgets import QApplication
 
+from src.infrastructure import LoggerManager
 from src.infrastructure.container import Container
-from src.infrastructure.logger import LoggerManager
 from src.ui.main_window import MainWindow
 
 
 class Application:
 
-    def __init__(self):
-
+    def __init__(self) -> None:
         LoggerManager.setup()
-
         self.container = Container()
 
-    def run(self):
-
+    def run(self) -> None:
         app = QApplication(sys.argv)
-
-        window = MainWindow(
-            self.container
-        )
-
+        window = MainWindow(self.container)
         window.show()
-
         sys.exit(app.exec())

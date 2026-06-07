@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+
+def run_translate(text: str) -> int:
+    try:
+        from src.infrastructure.container import Container
+
+        container = Container()
+        translated = container.pipeline.translator.translate(text)
+    except ModuleNotFoundError as exc:
+        print(f"Dépendance manquante : {exc.name}")
+        print("Installez les dépendances : pip install -r requirements.txt")
+        return 1
+
+    print(translated)
+    return 0
+
+
+def run_game_status() -> int:
+    try:
+        from src.infrastructure.container import Container
+
+        container = Container()
+        running = container.game_detection.is_running()
+    except ModuleNotFoundError as exc:
+        print(f"Dépendance manquante : {exc.name}")
+        print("Installez les dépendances : pip install -r requirements.txt")
+        return 1
+
+    print("Diablo III détecté" if running else "Diablo III non détecté")
+    return 0 if running else 1
+
+
+def run_export(fmt: str, output: Path | None) -> int:
+    from src.export.export_service import ExportService
+
+    service = ExportService()
+    if fmt == "json":
+        path = service.export_json(output)
+    else:
+        path = service.export_csv(output)
+
+    print(f"Export créé : {path}")
+    return 0
+
+
+def run_analytics() -> int:
+    from src.analytics.analytics_service import AnalyticsService
+
+    summary = AnalyticsService().get_summary()
+    print(f"Total traductions : {summary.total_translations}")
+    print(f"Aujourd'hui       : {summary.translations_today}")
+    print(f"Textes uniques    : {summary.unique_sources}")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="launcher",
+        description="Diablo III Translator",
+    )
+    sub = parser.add_subparsers(dest="command")
+
+    sub.add_parser("gui", help="Lancer l'interface graphique")
+    sub.add_parser("check", help="Vérifier les dépendances")
+    sub.add_parser("game", help="Vérifier si Diablo III est lancé")
+    sub.add_parser("stats", help="Afficher les statistiques")
+
+    translate = sub.add_parser("translate", help="Traduire un texte")
+    translate.add_argument("text", nargs="+", help="Texte à traduire")
+
+    export = sub.add_parser("export", help="Exporter l'historique")
+    export.add_argument(
+        "--format",
+        choices=("json", "csv"),
+        default="json",
+        help="Format d'export",
+    )
+    export.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Fichier de destination",
+    )
+
+    return parser
+
+
+def dispatch(args: argparse.Namespace) -> int:
+    command = args.command or "gui"
+
+    if command == "check":
+        from src.programs.dependency_checker import print_dependency_report
+
+        return print_dependency_report()
+
+    if command == "translate":
+        return run_translate(" ".join(args.text))
+
+    if command == "game":
+        return run_game_status()
+
+    if command == "export":
+        return run_export(args.format, args.output)
+
+    if command == "stats":
+        return run_analytics()
+
+    if command == "gui":
+        missing = []
+        try:
+            from src.programs.dependency_checker import missing_dependencies
+
+            missing = missing_dependencies()
+        except Exception:
+            pass
+
+        if missing:
+            print("Dépendances manquantes :", ", ".join(missing))
+            print("Installez-les avec : pip install -r requirements.txt")
+            return 1
+
+        from src.bootstrap.app import Application
+
+        Application().run()
+        return 0
+
+    return 1
