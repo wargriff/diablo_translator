@@ -8,10 +8,6 @@ def run_build_verify() -> int:
     """Smoke test pour build PyInstaller (exit 0 = OK)."""
     modules = (
         "PyQt6.QtWidgets",
-        "dependency_injector",
-        "dependency_injector.errors",
-        "dependency_injector.providers",
-        "dependency_injector.containers",
         "cv2",
         "easyocr",
         "torch",
@@ -35,6 +31,16 @@ def run_build_verify() -> int:
         print("VERIFY FAILED")
         for line in failed:
             print(f"  - {line}")
+        return 1
+
+    try:
+        from src.infrastructure.container import Container
+
+        container = Container()
+        container.shutdown()
+    except Exception as exc:
+        print("VERIFY FAILED")
+        print(f"  - Container(): {exc}")
         return 1
 
     print("VERIFY OK — modules critiques + DLL chargeables")

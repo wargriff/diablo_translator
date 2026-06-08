@@ -27,8 +27,6 @@ REQUIRED_IMPORTS: tuple[tuple[str, str], ...] = (
     ("langdetect", "langdetect"),
     ("deep_translator", "deep-translator"),
     ("pyperclip", "pyperclip"),
-    ("dependency_injector", "dependency-injector"),
-    ("dependency_injector.errors", "dependency-injector"),
 )
 
 REQUIRED_SOURCE_MODULES: tuple[str, ...] = (
