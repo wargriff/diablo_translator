@@ -5,7 +5,7 @@ from ctypes import wintypes
 from dataclasses import dataclass
 
 from src.capture.display_service import DisplayService, ScreenRect
-from src.game_detection.game_detection_service import GameDetectionService
+from src.game_detection.game_detection_service import GameDetectionService, GameDetectionStatus
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,8 +27,10 @@ class GameWindowService:
     def find_primary_game_info(
         cls,
         game_detection_service: GameDetectionService,
+        *,
+        status: GameDetectionStatus | None = None,
     ) -> GameWindowInfo | None:
-        status = game_detection_service.scan()
+        status = status or game_detection_service.scan()
         game = status.primary_game
         if game is None:
             return None

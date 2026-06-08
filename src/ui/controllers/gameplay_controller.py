@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.application.game_session_service import GameSessionService
 from src.automation.game_chat_input_service import GameChatInputService
 from src.application.config_service import ConfigService
 from src.application.live_chat_service import LiveChatService
@@ -30,12 +31,14 @@ class GameplayController:
         game_detection: GameDetectionService,
         config_service: ConfigService,
         speech_input: SpeechInputService,
+        game_session: GameSessionService,
     ) -> None:
         self.live_chat = live_chat
         self.pipeline = pipeline
         self.game_detection = game_detection
         self.config = config_service
         self.speech_input = speech_input
+        self.game_session = game_session
         self.worker = live_chat.worker
 
     @property
@@ -50,16 +53,21 @@ class GameplayController:
         if not config.auto_send_to_game:
             return False, "Envoi auto désactivé dans les paramètres."
 
+        snapshot = self.game_session.snapshot()
+        if snapshot.window is None:
+            return False, "Aucune fenêtre Diablo détectée — lancez le jeu."
+
         return GameChatInputService.send_message(
             self.game_detection,
             text,
             send_enter=True,
             restore_hwnd=restore_hwnd,
+            status=snapshot.status,
         )
 
     def start_monitoring(self, *, auto: bool = False) -> str | None:
-        status = self.game_detection.scan()
-        if not status.is_any_running:
+        snapshot = self.game_session.snapshot()
+        if not snapshot.status.is_any_running:
             if auto:
                 return None
             return "Aucun jeu Diablo détecté. Lancez D3, D4 ou Immortal."
@@ -76,7 +84,7 @@ class GameplayController:
         self.worker.stop()
 
     def scan_games(self):
-        return self.game_detection.scan()
+        return self.game_session.snapshot().status
 
     def provider_summary(self) -> ProviderSummary:
         config = self.app_config

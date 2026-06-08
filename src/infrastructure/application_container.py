@@ -4,6 +4,7 @@ from dependency_injector import containers, providers
 
 from src.analytics.analytics_service import AnalyticsService
 from src.application.config_service import ConfigService
+from src.application.game_launch_orchestrator import GameLaunchOrchestrator
 from src.application.game_readiness_service import GameReadinessService
 from src.application.game_session_service import GameSessionService
 from src.application.live_chat_service import LiveChatService
@@ -76,6 +77,12 @@ class ApplicationContainer(containers.DeclarativeContainer):
         conversation=conversation_context,
     )
 
+    game_session_service = providers.Singleton(
+        GameSessionService,
+        game_detection=game_detection_service,
+        config_service=config_service,
+    )
+
     live_chat_service = providers.Singleton(
         LiveChatService,
         chat_monitor=chat_monitor_service,
@@ -83,6 +90,7 @@ class ApplicationContainer(containers.DeclarativeContainer):
         game_detection=game_detection_service,
         pipeline=translation_pipeline,
         config_service=config_service,
+        game_session=game_session_service,
         game_readiness=game_readiness,
     )
 
@@ -93,8 +101,12 @@ class ApplicationContainer(containers.DeclarativeContainer):
         speech_output=speech_output_service,
     )
 
-    game_session_service = providers.Singleton(
-        GameSessionService,
-        game_detection=game_detection_service,
+    game_launch_orchestrator = providers.Singleton(
+        GameLaunchOrchestrator,
+        game_session=game_session_service,
+        game_readiness=game_readiness,
         config_service=config_service,
     )
+
+    def shutdown_resources(self) -> None:
+        self.capture_service().close()

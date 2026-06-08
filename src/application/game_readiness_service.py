@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 from src.capture.game_window_service import GameWindowService
+from src.domain.models.game_session import GameSessionSnapshot
 from src.game_detection.game_detection_service import GameDetectionService
 
 
@@ -33,6 +34,16 @@ class GameReadinessService:
         self._last_hint = hint
         return not hint
 
+    def is_ready_snapshot(
+        self,
+        snapshot: GameSessionSnapshot,
+        *,
+        grace_seconds: int,
+    ) -> bool:
+        hint = self.evaluate_snapshot(snapshot, grace_seconds=grace_seconds)
+        self._last_hint = hint
+        return not hint
+
     def evaluate(
         self,
         game_detection: GameDetectionService,
@@ -44,6 +55,26 @@ class GameReadinessService:
             return "Jeu Diablo non détecté"
 
         window = GameWindowService.find_primary_game_info(game_detection)
+        return self._evaluate_window(window, grace_seconds=grace_seconds)
+
+    def evaluate_snapshot(
+        self,
+        snapshot: GameSessionSnapshot,
+        *,
+        grace_seconds: int,
+    ) -> str:
+        if not snapshot.status.is_any_running:
+            self._stable_since = None
+            return "Jeu Diablo non détecté"
+
+        return self._evaluate_window(snapshot.window, grace_seconds=grace_seconds)
+
+    def _evaluate_window(
+        self,
+        window,
+        *,
+        grace_seconds: int,
+    ) -> str:
         if window is None:
             self._stable_since = None
             return "Fenêtre Diablo introuvable — lancement en cours…"

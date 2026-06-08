@@ -20,14 +20,24 @@ class TranslationPipeline:
     ) -> None:
         self._config = config or ConfigManager.load()
         self.conversation = conversation or ConversationContext()
-        self.ocr = OCRService(self._parse_ocr_languages(self._config.ocr_languages))
+        self._ocr_languages = self._parse_ocr_languages(self._config.ocr_languages)
+        self._ocr: OCRService | None = None
         self.translator = TranslationService(self._config, self.conversation)
         self.cache = TranslationCache(max_entries=self._config.cache_max_entries)
         self.history = HistoryService()
 
+    @property
+    def ocr(self) -> OCRService:
+        if self._ocr is None:
+            self._ocr = OCRService(self._ocr_languages)
+        return self._ocr
+
     def reload(self, config: AppConfig) -> None:
         self._config = config
-        self.ocr.reload(self._parse_ocr_languages(config.ocr_languages))
+        languages = self._parse_ocr_languages(config.ocr_languages)
+        self._ocr_languages = languages
+        if self._ocr is not None:
+            self._ocr.reload(languages)
         self.translator.reload(config)
         self.cache = TranslationCache(max_entries=config.cache_max_entries)
 

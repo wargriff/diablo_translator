@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from src.application.config_service import ConfigService
+from src.application.game_launch_orchestrator import GameLaunchOrchestrator
 from src.application.game_readiness_service import GameReadinessService
 from src.application.game_session_service import GameSessionService
 from src.application.live_chat_service import LiveChatService
@@ -41,6 +42,7 @@ class Container:
             self.game_detection,
             self.config_service,
             self.speech_input,
+            self.game_session,
         )
 
         self._configure_speech_input()
@@ -113,6 +115,10 @@ class Container:
     @property
     def game_session(self) -> GameSessionService:
         return self._di.game_session_service()
+
+    @property
+    def game_launch(self) -> GameLaunchOrchestrator:
+        return self._di.game_launch_orchestrator()
 
     def apply_config(self, config: AppConfig) -> None:
         self.config_service.replace(config)

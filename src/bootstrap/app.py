@@ -67,8 +67,11 @@ class Application:
             splash.set_progress(100, "Prêt")
             splash.finish(window)
 
-            delay_ms = max(container.config.startup_delay_seconds, 1) * 1000
-            QTimer.singleShot(delay_ms, window.enable_background_services)
+            delay_ms = max(container.config.startup_delay_seconds, 0) * 1000
+            if delay_ms == 0:
+                window.enable_background_services()
+            else:
+                QTimer.singleShot(delay_ms, window.enable_background_services)
 
         loader.loaded.connect(on_container_loaded)
         loader.start()

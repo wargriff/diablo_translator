@@ -502,6 +502,13 @@ class GameplayWidget(QWidget):
             self.update_wait_hint(status.wait_hint)
             return
 
+        if status.ocr_loading:
+            message = "OCR : chargement des modèles…"
+            if message != self._last_ocr_status_message:
+                self._last_ocr_status_message = message
+                self._append_overlay_status(message, error=False)
+            return
+
         if not self.worker.is_running:
             return
 

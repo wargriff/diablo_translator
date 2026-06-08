@@ -15,6 +15,9 @@ if TYPE_CHECKING:
 
 class TranslationWorker:
 
+    WAIT_POLL_SECONDS = 0.5
+    IDLE_POLL_SECONDS = 1.0
+
     def __init__(
         self,
         live_chat: LiveChatService | Any,
@@ -59,10 +62,7 @@ class TranslationWorker:
         self._stop_event.set()
 
     def _run(self) -> None:
-        try:
-            self._live_chat.prewarm_ocr()
-        except Exception:
-            pass
+        ocr_prewarmed = False
 
         while not self._stop_event.is_set():
             config = self._config_service.config
@@ -72,13 +72,25 @@ class TranslationWorker:
             delay = 1.0 / fps
 
             if not self._live_chat.is_game_running():
-                time.sleep(1.0)
+                ocr_prewarmed = False
+                time.sleep(self.IDLE_POLL_SECONDS)
                 continue
 
             if not self._live_chat.is_game_ready_for_ocr():
+                ocr_prewarmed = False
                 self._live_chat.emit_wait_status()
-                time.sleep(1.0)
+                time.sleep(self.WAIT_POLL_SECONDS)
                 continue
+
+            if not ocr_prewarmed:
+                self._live_chat.emit_ocr_loading(True)
+                try:
+                    self._live_chat.prewarm_ocr()
+                except Exception as exc:
+                    self._live_chat.emit_ocr_error(str(exc))
+                finally:
+                    self._live_chat.emit_ocr_loading(False)
+                ocr_prewarmed = True
 
             for result in self._live_chat.poll_chat():
                 self._emit_result(result)

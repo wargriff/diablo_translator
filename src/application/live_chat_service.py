@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from src.application.game_readiness_service import GameReadinessService
 from src.application.config_service import ConfigService
+from src.application.game_session_service import GameSessionService
 from src.application.in_game_chat_router import InGameChatRouter
 from src.application.player_identity_service import PlayerIdentityService
 from src.automation.translation_worker import TranslationWorker
@@ -25,6 +26,7 @@ class LiveChatStatus:
     new_message_count: int = 0
     last_error: str = ""
     wait_hint: str = ""
+    ocr_loading: bool = False
 
 
 class LiveChatService:
@@ -36,6 +38,7 @@ class LiveChatService:
         game_detection: GameDetectionService,
         pipeline: TranslationPipeline,
         config_service: ConfigService,
+        game_session: GameSessionService | None = None,
         player_identity: PlayerIdentityService | None = None,
         chat_router: InGameChatRouter | None = None,
         game_readiness: GameReadinessService | None = None,
@@ -45,6 +48,7 @@ class LiveChatService:
         self._game_detection = game_detection
         self._pipeline = pipeline
         self._config_service = config_service
+        self._game_session = game_session
         self._player_identity = player_identity or PlayerIdentityService()
         self._chat_router = chat_router or InGameChatRouter(pipeline, self._player_identity)
         self._readiness = game_readiness or GameReadinessService()
@@ -68,8 +72,25 @@ class LiveChatService:
         self.worker = worker
         worker.set_translation_listener(self._emit_translation)
 
+    def _session_snapshot(self):
+        if self._game_session is not None:
+            return self._game_session.snapshot()
+        from src.domain.models.game_session import GameSessionSnapshot
+        import time
+
+        from src.capture.game_window_service import GameWindowService
+
+        status = self._game_detection.scan()
+        window = None
+        if status.is_any_running:
+            window = GameWindowService.find_primary_game_info(
+                self._game_detection,
+                status=status,
+            )
+        return GameSessionSnapshot(status=status, window=window, scanned_at=time.time())
+
     def is_game_running(self) -> bool:
-        return self._game_detection.is_running()
+        return self._session_snapshot().status.is_any_running
 
     def set_translation_listener(self, callback) -> None:
         self._translation_listener = callback
@@ -80,18 +101,20 @@ class LiveChatService:
         self._chat_monitor.reset()
         self._player_identity.reset()
         self._readiness.reset()
+        if self._game_session is not None:
+            self._game_session.invalidate()
 
     def is_game_ready_for_ocr(self) -> bool:
         config = self._config_service.config
-        return self._readiness.is_ready(
-            self._game_detection,
+        return self._readiness.is_ready_snapshot(
+            self._session_snapshot(),
             grace_seconds=config.game_startup_grace_seconds,
         )
 
     def game_readiness_hint(self) -> str:
         config = self._config_service.config
-        return self._readiness.evaluate(
-            self._game_detection,
+        return self._readiness.evaluate_snapshot(
+            self._session_snapshot(),
             grace_seconds=config.game_startup_grace_seconds,
         )
 
@@ -105,6 +128,32 @@ class LiveChatService:
             monitor_index=self._last_status.monitor_index,
             preset_key=self._last_status.preset_key,
             wait_hint=hint,
+            ocr_loading=self._last_status.ocr_loading,
+        )
+        self._emit_status()
+
+    def emit_ocr_loading(self, loading: bool) -> None:
+        self._last_status = LiveChatStatus(
+            capture_source=self._last_status.capture_source,
+            display_mode=self._last_status.display_mode,
+            monitor_index=self._last_status.monitor_index,
+            preset_key=self._last_status.preset_key,
+            ocr_line_count=self._last_status.ocr_line_count,
+            new_message_count=self._last_status.new_message_count,
+            last_error=self._last_status.last_error,
+            wait_hint=self._last_status.wait_hint,
+            ocr_loading=loading,
+        )
+        self._emit_status()
+
+    def emit_ocr_error(self, message: str) -> None:
+        self._last_status = LiveChatStatus(
+            capture_source=self._last_status.capture_source,
+            display_mode=self._last_status.display_mode,
+            monitor_index=self._last_status.monitor_index,
+            preset_key=self._last_status.preset_key,
+            last_error=message,
+            ocr_loading=False,
         )
         self._emit_status()
 

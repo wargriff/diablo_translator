@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.domain.models.game_session import GameLaunchPhase
 from src.domain.models.translation_result import TranslationResult
 from src.infrastructure import LoggerManager
 from src.infrastructure.asset_manager import AssetManager
@@ -66,7 +67,7 @@ class MainWindow(QMainWindow):
         )
 
         self._game_timer = QTimer(self)
-        self._game_timer.setInterval(2500)
+        self._game_timer.setInterval(1000)
         self._game_timer.timeout.connect(self._on_game_timer)
         self._game_timer.start()
 
@@ -245,26 +246,27 @@ class MainWindow(QMainWindow):
             return
         if not self.container.config.chat_monitor_enabled:
             return
-        if self.container.worker.is_running:
+
+        state = self.container.game_launch.tick()
+        if state.phase == GameLaunchPhase.IDLE:
+            self._set_game_poll_interval(fast=False)
             return
 
-        status = self.container.game_detection.scan()
-        if not status.is_any_running:
-            return
+        if state.hint:
+            self.gameplay_widget.update_wait_hint(state.hint)
 
-        hint = self.container.live_chat.game_readiness_hint()
-        if hint:
-            self.gameplay_widget.update_wait_hint(hint)
-            return
+        if not self.container.worker.is_running:
+            self.gameplay_widget.start_worker(auto=True)
 
-        self.gameplay_widget.start_worker(auto=True)
+        self._set_game_poll_interval(fast=state.phase != GameLaunchPhase.READY)
+
+    def _set_game_poll_interval(self, *, fast: bool) -> None:
+        interval = 800 if fast else 2000
+        if self._game_timer.interval() != interval:
+            self._game_timer.setInterval(interval)
 
     def _on_game_timer(self) -> None:
         if not self._background_services_enabled:
-            return
-
-        status = self.container.game_detection.scan()
-        if not status.is_any_running:
             return
 
         self._try_auto_start_monitor()

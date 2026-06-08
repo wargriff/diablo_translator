@@ -8,6 +8,7 @@ pyperclip
 deep-translator
 psutil
 python-dotenv
+dependency-injector
 mss
 speechrecognition
 pyttsx3

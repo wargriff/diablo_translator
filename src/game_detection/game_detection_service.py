@@ -60,8 +60,23 @@ class GameDetectionStatus:
 
 class GameDetectionService:
 
-    def scan(self) -> GameDetectionStatus:
+    CACHE_TTL_SECONDS = 0.75
+
+    def __init__(self) -> None:
+        self._cache: GameDetectionStatus | None = None
+        self._cache_at = 0.0
+
+    def scan(self, *, force: bool = False) -> GameDetectionStatus:
         import psutil
+        import time
+
+        now = time.time()
+        if (
+            not force
+            and self._cache is not None
+            and now - self._cache_at < self.CACHE_TTL_SECONDS
+        ):
+            return self._cache
 
         running: list[SupportedGame] = []
         active_processes: dict[str, str] = {}
@@ -73,10 +88,16 @@ class GameDetectionService:
                 running.append(game)
                 active_processes[game.key] = matched
 
-        return GameDetectionStatus(
+        self._cache = GameDetectionStatus(
             running_games=running,
             active_processes=active_processes,
         )
+        self._cache_at = now
+        return self._cache
+
+    def invalidate_cache(self) -> None:
+        self._cache = None
+        self._cache_at = 0.0
 
     def is_running(self) -> bool:
         return self.scan().is_any_running
