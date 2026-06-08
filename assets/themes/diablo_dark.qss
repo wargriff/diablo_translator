@@ -63,6 +63,29 @@ QFrame#ChatPanel {
     border-radius: 2px;
 }
 
+QLineEdit#ChatInputLine {
+    background-color: rgba(12, 10, 8, 0.98);
+    color: #f5e6c8;
+    border: 1px solid #5c4a32;
+    border-radius: 3px;
+    padding: 8px 10px;
+    selection-background-color: #6b1a1a;
+}
+
+QLineEdit#ChatInputLine:focus {
+    border-color: #b8860b;
+}
+
+QWidget#CompactOcrBar {
+    background: transparent;
+}
+
+QPushButton#CompactOcrButton {
+    padding: 5px 10px;
+    min-height: 26px;
+    font-size: 11px;
+}
+
 QTabWidget::pane {
     border: 1px solid #3d3428;
     background: #0f0d0b;

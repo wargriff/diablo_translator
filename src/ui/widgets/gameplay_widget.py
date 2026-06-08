@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PyQt6.QtCore import QEvent, Qt, QTimer
+from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QFrame,
@@ -23,6 +23,8 @@ from src.voice.speech_service import SpeechInputService
 
 
 class GameplayWidget(QWidget):
+
+    open_settings_requested = pyqtSignal()
 
     def __init__(
         self,
@@ -47,8 +49,9 @@ class GameplayWidget(QWidget):
         self.chat_log.setFont(AssetManager.monospace_font(10))
 
         self.chat_input = QLineEdit()
+        self.chat_input.setObjectName("ChatInputLine")
         self.chat_input.setPlaceholderText(
-            "Écrivez en français → traduction auto vers la langue du chat (Ctrl+Entrée)"
+            "Tapez ici (Entrée) ou laissez l'OCR lire le chat Diablo"
         )
         self.chat_input.installEventFilter(self)
 
@@ -75,6 +78,19 @@ class GameplayWidget(QWidget):
         self.refresh_button = QPushButton(" Actualiser")
         self.refresh_button.setToolTip("Actualiser l'état des jeux (Ctrl+Shift+R)")
 
+        self.compact_start_button = QPushButton(" OCR")
+        self.compact_start_button.setObjectName("CompactOcrButton")
+        self.compact_start_button.setIcon(AssetManager.icon("play"))
+        self.compact_start_button.setToolTip("Lire le chat Diablo via OCR")
+        self.compact_stop_button = QPushButton(" Stop")
+        self.compact_stop_button.setObjectName("CompactOcrButton")
+        self.compact_stop_button.setIcon(AssetManager.icon("stop"))
+        self.compact_stop_button.setToolTip("Arrêter la surveillance OCR")
+        self.compact_settings_button = QPushButton(" Réglages")
+        self.compact_settings_button.setObjectName("CompactOcrButton")
+        self.compact_settings_button.setIcon(AssetManager.icon("settings"))
+        self.compact_settings_button.setToolTip("Ouvrir les paramètres")
+
         self.last_translation_label = QLabel("Dernière traduction : en attente...")
         self.last_translation_label.setObjectName("MutedText")
         self.last_translation_label.setWordWrap(True)
@@ -92,20 +108,42 @@ class GameplayWidget(QWidget):
         self.start_button.clicked.connect(self.start_worker)
         self.stop_button.clicked.connect(self.stop_worker)
         self.refresh_button.clicked.connect(self.refresh_game_status)
+        self.compact_start_button.clicked.connect(self.start_worker)
+        self.compact_stop_button.clicked.connect(self.stop_worker)
+        self.compact_settings_button.clicked.connect(self.open_settings_requested.emit)
 
         self._setup_shortcuts()
+
+        compact_ocr_row = QHBoxLayout()
+        compact_ocr_row.setSpacing(6)
+        compact_ocr_row.addWidget(self.compact_start_button)
+        compact_ocr_row.addWidget(self.compact_stop_button)
+        compact_ocr_row.addWidget(self.compact_settings_button)
+        compact_ocr_row.addStretch()
+        self.compact_ocr_bar = QWidget()
+        self.compact_ocr_bar.setObjectName("CompactOcrBar")
+        self.compact_ocr_bar.setLayout(compact_ocr_row)
+        self.compact_ocr_bar.setVisible(False)
 
         input_row = QHBoxLayout()
         input_row.addWidget(self.chat_input, stretch=1)
         input_row.addWidget(self.translate_button)
         input_row.addWidget(self.voice_button)
-        self._input_row_widgets = [self.chat_input, self.translate_button, self.voice_button]
 
         auto_row = QHBoxLayout()
         auto_row.addWidget(self.start_button)
         auto_row.addWidget(self.stop_button)
         auto_row.addWidget(self.refresh_button)
         auto_row.addStretch()
+
+        self.monitor_panel = QWidget()
+        monitor_panel_layout = QVBoxLayout()
+        monitor_panel_layout.setContentsMargins(0, 0, 0, 0)
+        monitor_panel_layout.setSpacing(8)
+        monitor_panel_layout.addLayout(auto_row)
+        monitor_panel_layout.addWidget(self.auto_status_label)
+        monitor_panel_layout.addWidget(self.last_translation_label)
+        self.monitor_panel.setLayout(monitor_panel_layout)
 
         chat_panel = QFrame()
         chat_panel.setObjectName("ChatPanel")
@@ -122,13 +160,12 @@ class GameplayWidget(QWidget):
         chat_title = self._section_title("TRADUCTIONS LIVE")
         layout.addWidget(chat_title)
         layout.addWidget(chat_panel)
+        layout.addWidget(self.compact_ocr_bar)
         layout.addLayout(input_row)
 
         monitor_title = self._section_title("SURVEILLANCE OCR")
         layout.addWidget(monitor_title)
-        layout.addLayout(auto_row)
-        layout.addWidget(self.auto_status_label)
-        layout.addWidget(self.last_translation_label)
+        layout.addWidget(self.monitor_panel)
         self.setLayout(layout)
 
         self._section_titles = [chat_title, monitor_title]
@@ -136,11 +173,8 @@ class GameplayWidget(QWidget):
             self.game_status,
             self.provider_label,
             self.monitor_info_label,
-            self.start_button,
-            self.stop_button,
-            self.refresh_button,
-            self.auto_status_label,
-            self.last_translation_label,
+            self.monitor_panel,
+            self.voice_button,
             *self._section_titles,
         ]
 
@@ -156,27 +190,31 @@ class GameplayWidget(QWidget):
         for widget in self._compact_hidden:
             widget.setVisible(not enabled)
 
-        self.chat_log.setMinimumHeight(140 if enabled else 260)
+        self.compact_ocr_bar.setVisible(enabled)
+        self.chat_log.setMinimumHeight(120 if enabled else 260)
         self._apply_ingame_mode()
         self._apply_welcome_message(enabled)
 
     def _apply_ingame_mode(self) -> None:
-        ingame = self.controller.app_config.ingame_only_mode
         compact = self.controller.app_config.overlay_compact
-        hide_input = ingame or compact
+        ingame = self.controller.app_config.ingame_only_mode
+        hide_input = ingame and not compact
 
-        for widget in self._input_row_widgets:
-            widget.setVisible(not hide_input)
+        self.chat_input.setVisible(not hide_input)
+        self.translate_button.setVisible(not hide_input)
 
-        if hide_input and ingame:
-            self.chat_input.setPlaceholderText("")
+        if compact and not hide_input:
+            self.chat_input.setPlaceholderText(
+                "Tapez ici (Entrée) ou laissez l'OCR lire le chat Diablo"
+            )
+            self.translate_button.setText(" →")
         elif not hide_input:
             self.chat_input.setPlaceholderText(
-                "Écrivez en français → traduction auto (Ctrl+Entrée)"
+                "Écrivez en français → traduction auto (Ctrl+Entrée ou Entrée)"
             )
+            self.translate_button.setText(" Traduire")
 
-        self.translate_button.setText(" →" if compact else " Traduire")
-        self.voice_button.setVisible(not hide_input)
+        self.voice_button.setVisible(not hide_input and not ingame)
 
     def _apply_welcome_message(self, compact: bool) -> None:
         if not compact or self.chat_log.toPlainText().strip():
@@ -185,11 +223,11 @@ class GameplayWidget(QWidget):
         if self.controller.app_config.ingame_only_mode:
             self._append_chat_html(
                 '<span style="color:#d4af37;font-weight:700;">Mode In-Game</span> '
-                '<span style="color:#8a8278;">— traductions du chat Diablo ici</span>'
+                '<span style="color:#8a8278;">— OCR + saisie manuelle ci-dessous</span>'
             )
         else:
             self._append_chat_html(
-                '<span style="color:#8a8278;">Traductions du chat Diablo ici</span>'
+                '<span style="color:#8a8278;">OCR du chat Diablo + saisie manuelle ci-dessous</span>'
             )
 
     def _setup_shortcuts(self) -> None:
@@ -216,6 +254,9 @@ class GameplayWidget(QWidget):
 
             if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 if modifiers & Qt.KeyboardModifier.ControlModifier:
+                    self.translate_chat_message()
+                    return True
+                if self.controller.app_config.overlay_compact:
                     self.translate_chat_message()
                     return True
                 return False

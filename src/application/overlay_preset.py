@@ -10,7 +10,7 @@ def apply_game_overlay_preset(config: AppConfig) -> AppConfig:
     config.overlay_position = "bottom_left"
     config.overlay_above_chat = True
     config.overlay_width = 400
-    config.overlay_height = 240
+    config.overlay_height = 280
     config.overlay_opacity = 0.93
     config.always_on_top = True
     config.auto_raise_on_game = False
@@ -22,9 +22,9 @@ def apply_game_overlay_preset(config: AppConfig) -> AppConfig:
     config.display_mode = "fullscreen"
     config.resolution_profile = "1080p"
     config.chat_region_preset = "d3_1080p"
-    config.ingame_only_mode = True
+    config.ingame_only_mode = False
     config.auto_detect_player = True
     config.auto_copy_outgoing = True
     config.overlay_width = 430
-    config.overlay_height = 210
+    config.overlay_height = 280
     return config

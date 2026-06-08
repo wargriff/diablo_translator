@@ -185,7 +185,7 @@ class SettingsDialog(QDialog):
     def _build_overlay_page(self) -> QWidget:
         form = QFormLayout()
         form.addRow("Mode overlay sur le chat", self.overlay_compact)
-        form.addRow("Traduction 100% in-game (sans champ appli)", self.ingame_only_mode)
+        form.addRow("Masquer saisie manuelle (OCR seul)", self.ingame_only_mode)
         form.addRow("Barre Windows native (deplacer / fermer)", self.overlay_native_frame)
         form.addRow("Memoriser position fenetre", self.overlay_remember_position)
         form.addRow("Toujours devant", self.always_on_top)

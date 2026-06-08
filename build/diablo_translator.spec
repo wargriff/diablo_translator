@@ -56,6 +56,10 @@ datas = [
     (str(project_root / ".env.example"), "."),
 ]
 
+easyocr_vendor_dir = build_dir / "easyocr_vendor"
+if easyocr_vendor_dir.is_dir():
+    datas.append((str(easyocr_vendor_dir), "easyocr_vendor"))
+
 for package in ("cv2", "torch", "scipy", "numpy", "shapely", "PyQt6"):
     try:
         binaries += collect_dynamic_libs(package)

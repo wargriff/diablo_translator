@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
             self.container,
             on_status_update=self.update_status_bar,
         )
+        gameplay.open_settings_requested.connect(self.open_settings)
         history = HistoryWidget(self.container)
 
         self._tabs.addTab(sanctuary, "Sanctuaire")

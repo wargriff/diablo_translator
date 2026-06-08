@@ -146,6 +146,20 @@ def _prepare_environment() -> int:
         print(f"Icone : {icon_path} ({icon_path.stat().st_size} octets)")
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
+
+    _ensure_import_path()
+    from src.ocr.easyocr_patch import (
+        apply_easyocr_corrupt_msg_patch,
+        write_patched_easyocr_vendor,
+    )
+
+    apply_easyocr_corrupt_msg_patch()
+    vendor_file = write_patched_easyocr_vendor(BUILD_DIR)
+    if vendor_file:
+        print(f"Patch OCR bundle : {vendor_file}")
+    else:
+        print("AVERTISSEMENT : patch OCR vendor non genere (EasyOCR absent ?)")
+
     return 0
 
 

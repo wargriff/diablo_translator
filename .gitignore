@@ -13,4 +13,5 @@ models/*
 !models/README.md
 build/dist/
 build/work/
+build/easyocr_vendor/
 *.spec.bak

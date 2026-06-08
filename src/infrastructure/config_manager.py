@@ -13,7 +13,7 @@ class AppConfig:
     overlay_compact: bool = True
     overlay_position: str = "bottom_left"
     overlay_width: int = 400
-    overlay_height: int = 240
+    overlay_height: int = 280
     overlay_margin: int = 8
     overlay_borderless: bool = False
     overlay_click_through: bool = False
@@ -38,7 +38,7 @@ class AppConfig:
     capture_fullscreen_monitor: bool = True
     display_mode: str = "auto"
     resolution_profile: str = "1080p"
-    ingame_only_mode: bool = True
+    ingame_only_mode: bool = False
     player_name: str = ""
     auto_detect_player: bool = True
     auto_copy_outgoing: bool = True
@@ -117,6 +117,13 @@ class ConfigManager:
             config.overlay_borderless = False
             config.overlay_remember_position = True
             version = 6
+            migrated = True
+
+        if version < 7:
+            config.ingame_only_mode = False
+            if config.overlay_height < 260:
+                config.overlay_height = 280
+            version = 7
             migrated = True
 
         if migrated:
