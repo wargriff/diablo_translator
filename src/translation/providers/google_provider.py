@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.translation.providers.retry import translate_with_retry
+
 
 class GoogleTranslatorProvider:
 
@@ -15,4 +17,8 @@ class GoogleTranslatorProvider:
         from deep_translator import GoogleTranslator
 
         source = source_language or "auto"
-        return GoogleTranslator(source=source, target=target_language).translate(text)
+
+        def _call() -> str:
+            return GoogleTranslator(source=source, target=target_language).translate(text)
+
+        return translate_with_retry(_call)

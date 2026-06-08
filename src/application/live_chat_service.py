@@ -115,7 +115,21 @@ class LiveChatService:
 
         results: list[TranslationResult] = []
         for message in capture.new_messages:
-            result = self._chat_router.process_message(message, config)
+            try:
+                result = self._chat_router.process_message(message, config)
+            except Exception as exc:
+                self._last_status = LiveChatStatus(
+                    capture_source=capture.capture_source,
+                    display_mode=capture.display_mode,
+                    monitor_index=capture.monitor_index,
+                    preset_key=capture.preset_key,
+                    ocr_line_count=len(capture.raw_text.splitlines()) if capture.raw_text else 0,
+                    new_message_count=0,
+                    last_error=f"Traduction : {exc}",
+                )
+                self._emit_status()
+                continue
+
             if result.translated_text and (not result.skipped or result.preserved_mixed):
                 results.append(result)
         return results

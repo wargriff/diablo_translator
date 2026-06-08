@@ -132,13 +132,15 @@ class TranslationService:
             return home
 
         if origin in {"user", "voice"}:
+            peer = normalize_language(
+                self._conversation.last_foreign_language
+                or self._config.default_reply_language
+            ) or "en"
+            if self._language_detector.is_same_language(source_language, peer):
+                return peer
             if self._language_detector.is_same_language(source_language, home):
-                peer = (
-                    self._conversation.last_foreign_language
-                    or self._config.default_reply_language
-                )
-                return normalize_language(peer) or "en"
-            return home
+                return peer
+            return peer
 
         if self._language_detector.is_same_language(source_language, home):
             return home

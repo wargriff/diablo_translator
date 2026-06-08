@@ -50,8 +50,9 @@ class GameplayWidget(QWidget):
 
         self.chat_input = QLineEdit()
         self.chat_input.setObjectName("ChatInputLine")
+        self.chat_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.chat_input.setPlaceholderText(
-            "Tapez ici (Entrée) ou laissez l'OCR lire le chat Diablo"
+            "Cliquez ici — traduction affichée dans l'overlay (Ctrl+C pour copier)"
         )
         self.chat_input.installEventFilter(self)
 
@@ -64,6 +65,13 @@ class GameplayWidget(QWidget):
         self.translate_button.setIcon(AssetManager.icon("translate"))
         self.translate_button.setToolTip("Traduire (Ctrl+Entrée)")
         self.translate_button.clicked.connect(self.translate_chat_message)
+
+        self.copy_button = QPushButton(" Copier")
+        self.copy_button.setObjectName("CompactOcrButton")
+        self.copy_button.setIcon(AssetManager.icon("translate"))
+        self.copy_button.setToolTip("Copier la dernière traduction sortante (Ctrl+C)")
+        self.copy_button.clicked.connect(self.copy_last_outgoing_translation)
+        self._last_outgoing_translation = ""
 
         self.voice_button = QPushButton(" Micro")
         self.voice_button.setIcon(AssetManager.icon("mic"))
@@ -128,6 +136,7 @@ class GameplayWidget(QWidget):
         input_row = QHBoxLayout()
         input_row.addWidget(self.chat_input, stretch=1)
         input_row.addWidget(self.translate_button)
+        input_row.addWidget(self.copy_button)
         input_row.addWidget(self.voice_button)
 
         auto_row = QHBoxLayout()
@@ -205,12 +214,12 @@ class GameplayWidget(QWidget):
 
         if compact and not hide_input:
             self.chat_input.setPlaceholderText(
-                "Tapez ici (Entrée) ou laissez l'OCR lire le chat Diablo"
+                "Cliquez ici — traduction dans l'overlay (bouton Copier → Diablo)"
             )
             self.translate_button.setText(" →")
         elif not hide_input:
             self.chat_input.setPlaceholderText(
-                "Écrivez en français → traduction auto (Ctrl+Entrée ou Entrée)"
+                "Saisie manuelle (Entrée) — ne va pas dans Diablo automatiquement"
             )
             self.translate_button.setText(" Traduire")
 
@@ -282,8 +291,23 @@ class GameplayWidget(QWidget):
             self._append_chat_line("Erreur", str(exc), "#c0392b")
             return
 
-        self.display_translation_result(result, speaker="Vous")
+        self.display_translation_result(result, speaker="Vous", manual_input=True)
         self._notify_status_update()
+
+    def copy_last_outgoing_translation(self) -> None:
+        if not self._last_outgoing_translation:
+            self._append_chat_line(
+                "Info",
+                "Aucune traduction sortante à copier pour l'instant.",
+                "#8a8278",
+            )
+            return
+        self._copy_to_clipboard(self._last_outgoing_translation)
+        self._append_chat_line(
+            "Info",
+            "Traduction copiée — collez-la vous-même dans Diablo (Ctrl+V).",
+            "#8a8278",
+        )
 
     def toggle_voice_input(self) -> None:
         if self._voice_busy:
@@ -349,6 +373,7 @@ class GameplayWidget(QWidget):
         result: TranslationResult,
         *,
         speaker: str = "Chat",
+        manual_input: bool = False,
     ) -> None:
         timestamp = datetime.now().strftime("%H:%M:%S")
         translator = self.controller.pipeline.translator
@@ -387,22 +412,31 @@ class GameplayWidget(QWidget):
                     f'<span style="color:#6b5f52;font-size:92%;">'
                     f'{self._escape_html(result.source_text)}</span>'
                 )
-            if self.controller.app_config.auto_copy_outgoing:
+            if self.controller.app_config.auto_copy_outgoing and not manual_input:
                 self._copy_to_clipboard(result.translated_text)
+            self._last_outgoing_translation = result.translated_text
             self.last_translation_label.setText(
-                f"Réponse à coller en {target_label} : {result.translated_text}"
+                f"À coller en {target_label} : {result.translated_text}"
+                + (" (bouton Copier)" if manual_input else "")
             )
             self._refresh_provider_label()
             return
 
         source_label = translator.language_display_name(result.source_language)
+        show_source = self._should_show_source_reference(result)
         if self.controller.app_config.overlay_compact:
-            self._append_chat_html(
-                f'<span style="color:#ffffff;font-size:110%;">'
-                f'{self._escape_html(result.translated_text)}</span> '
-                f'<span style="color:#6b5f52;font-size:88%;">'
-                f'← {self._escape_html(result.source_text)}</span>'
-            )
+            if show_source:
+                self._append_chat_html(
+                    f'<span style="color:#ffffff;font-size:110%;">'
+                    f'{self._escape_html(result.translated_text)}</span> '
+                    f'<span style="color:#6b5f52;font-size:88%;">'
+                    f'← {self._escape_html(result.source_text)}</span>'
+                )
+            else:
+                self._append_chat_html(
+                    f'<span style="color:#ffffff;font-size:110%;">'
+                    f'{self._escape_html(result.translated_text)}</span>'
+                )
         else:
             self._append_chat_html(
                 f'<span style="color:#6b5f52;">[{timestamp}]</span> '
@@ -427,7 +461,13 @@ class GameplayWidget(QWidget):
             return
 
         if status.last_error:
-            message = f"OCR erreur : {status.last_error}"
+            prefix = "Traduction" if status.last_error.startswith("Traduction") else "OCR"
+            detail = status.last_error.removeprefix("Traduction : ").strip()
+            message = (
+                f"{prefix} : {detail}"
+                if prefix == "Traduction"
+                else f"OCR erreur : {detail}"
+            )
             if message == self._last_ocr_status_message:
                 return
             self._last_ocr_status_message = message
@@ -550,6 +590,29 @@ class GameplayWidget(QWidget):
             .replace("<", "&lt;")
             .replace(">", "&gt;")
         )
+
+    @staticmethod
+    def _should_show_source_reference(result: TranslationResult) -> bool:
+        from src.chat.chat_text_normalizer import ChatTextNormalizer
+
+        source = ChatTextNormalizer.normalize_line(result.source_text)
+        translated = ChatTextNormalizer.normalize_line(result.translated_text)
+        if not source or not translated:
+            return False
+        return source.casefold() != translated.casefold()
+
+    def keyPressEvent(self, event) -> None:
+        if (
+            not self.chat_input.hasFocus()
+            and event.text()
+            and event.text().isprintable()
+            and not event.modifiers() & Qt.KeyboardModifier.ControlModifier
+        ):
+            self.chat_input.setFocus(Qt.FocusReason.OtherFocusReason)
+            self.chat_input.insert(event.text())
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def shutdown(self) -> None:
         self.controller.speech_input.stop()

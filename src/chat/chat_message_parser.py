@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
+from src.chat.chat_text_normalizer import ChatTextNormalizer
+
 
 @dataclass(frozen=True, slots=True)
 class ChatMessage:
@@ -17,14 +19,14 @@ class ChatMessage:
 class ChatMessageParser:
 
     _SAY_PATTERNS = (
-        re.compile(r"\bdit\s*:\s*(.+)$", re.IGNORECASE),
-        re.compile(r"\bsays\s*:\s*(.+)$", re.IGNORECASE),
-        re.compile(r"\bsagt\s*:\s*(.+)$", re.IGNORECASE),
-        re.compile(r"\bdice\s*:\s*(.+)$", re.IGNORECASE),
-        re.compile(r"\bschreibt\s*:\s*(.+)$", re.IGNORECASE),
-        re.compile(r"\bwrites\s*:\s*(.+)$", re.IGNORECASE),
-        re.compile(r"\bschrijft\s*:\s*(.+)$", re.IGNORECASE),
-        re.compile(r"\bescribe\s*:\s*(.+)$", re.IGNORECASE),
+        re.compile(r"\bdit\s*:?\s*(.+)$", re.IGNORECASE),
+        re.compile(r"\bsays\s*:?\s*(.+)$", re.IGNORECASE),
+        re.compile(r"\bsagt\s*:?\s*(.+)$", re.IGNORECASE),
+        re.compile(r"\bdice\s*:?\s*(.+)$", re.IGNORECASE),
+        re.compile(r"\bschreibt\s*:?\s*(.+)$", re.IGNORECASE),
+        re.compile(r"\bwrites\s*:?\s*(.+)$", re.IGNORECASE),
+        re.compile(r"\bschrijft\s*:?\s*(.+)$", re.IGNORECASE),
+        re.compile(r"\bescribe\s*:?\s*(.+)$", re.IGNORECASE),
         re.compile(r"\b(?:говорит|сказал|сказала)\s*:\s*(.+)$", re.IGNORECASE),
         re.compile(r"\b(?:言った|と言いました)\s*[:：]\s*(.+)$", re.IGNORECASE),
     )
@@ -74,8 +76,11 @@ class ChatMessageParser:
 
     @classmethod
     def parse(cls, line: str) -> ChatMessage | None:
-        cleaned = " ".join(line.split()).strip()
+        cleaned = ChatTextNormalizer.normalize_line(line)
         if not cleaned:
+            return None
+
+        if ChatTextNormalizer.is_likely_garbage(cleaned):
             return None
 
         lowered = cleaned.lower()
@@ -124,7 +129,9 @@ class ChatMessageParser:
         for pattern in cls._WHISPER_PATTERNS:
             match = pattern.search(cleaned)
             if match:
-                message = match.group(1).strip()
+                message = ChatTextNormalizer.dedupe_repeated_content(
+                    match.group(1).strip()
+                )
                 if cls._is_valid_message(message):
                     speaker = cls._extract_speaker(cleaned)
                     return ChatMessage(
@@ -134,10 +141,21 @@ class ChatMessageParser:
                         channel="whisper",
                     )
 
+        extracted = ChatTextNormalizer.extract_chat_message(cleaned)
+        if extracted != cleaned and cls._is_valid_message(extracted):
+            speaker = cls._extract_speaker(cleaned)
+            return ChatMessage(
+                raw_line=cleaned,
+                message=extracted,
+                speaker=speaker,
+            )
+
         for pattern in cls._SAY_PATTERNS:
             match = pattern.search(cleaned)
             if match:
-                message = match.group(1).strip()
+                message = ChatTextNormalizer.dedupe_repeated_content(
+                    match.group(1).strip()
+                )
                 if cls._is_valid_message(message):
                     speaker = cls._extract_speaker(cleaned)
                     return ChatMessage(
@@ -146,13 +164,11 @@ class ChatMessageParser:
                         speaker=speaker,
                     )
 
-        if "]" in cleaned and ":" in cleaned:
-            tail = cleaned.rsplit(":", 1)[-1].strip()
-            if cls._is_valid_message(tail) and not tail.startswith("["):
-                return ChatMessage(raw_line=cleaned, message=tail)
-
         if cls._looks_like_player_message(cleaned):
-            return ChatMessage(raw_line=cleaned, message=cleaned)
+            return ChatMessage(
+                raw_line=cleaned,
+                message=ChatTextNormalizer.dedupe_repeated_content(cleaned),
+            )
 
         return None
 

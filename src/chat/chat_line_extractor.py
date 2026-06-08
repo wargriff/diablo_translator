@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from src.chat.chat_text_normalizer import ChatTextNormalizer
+
 
 class ChatLineExtractor:
 
@@ -49,7 +51,7 @@ class ChatLineExtractor:
     def _normalize_lines(self, text: str) -> list[str]:
         lines = []
         for raw_line in text.splitlines():
-            cleaned = " ".join(raw_line.split()).strip()
+            cleaned = ChatTextNormalizer.normalize_line(raw_line)
             cleaned = cleaned.replace("|", "l").replace("»", ":").replace("›", ":")
             if cleaned:
                 lines.append(cleaned)
@@ -83,7 +85,8 @@ class ChatLineExtractor:
 
     @staticmethod
     def _fingerprint(line: str) -> str:
-        normalized = re.sub(r"[^\w\s:]", "", line.lower())
+        normalized = ChatTextNormalizer.normalize_line(line)
+        normalized = re.sub(r"[^\w\s:]", "", normalized.lower())
         return " ".join(normalized.split())
 
     @staticmethod
