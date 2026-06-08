@@ -16,6 +16,8 @@ src_hiddenimports = collect_submodules("src")
 
 hiddenimports = [
     "PyQt6",
+    "dependency_injector",
+    "dependency_injector.providers",
     "PyQt6.QtCore",
     "PyQt6.QtGui",
     "PyQt6.QtWidgets",
