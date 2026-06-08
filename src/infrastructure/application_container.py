@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.analytics.analytics_service import AnalyticsService
 from src.application.config_service import ConfigService
+from src.application.game_launcher_service import GameLauncherService
 from src.application.game_launch_orchestrator import GameLaunchOrchestrator
 from src.application.game_readiness_service import GameReadinessService
 from src.application.game_session_service import GameSessionService
@@ -35,6 +36,7 @@ class ApplicationContainer:
         self._live_chat_service: LiveChatService | None = None
         self._translation_worker: TranslationWorker | None = None
         self._game_launch_orchestrator: GameLaunchOrchestrator | None = None
+        self._game_launcher_service: GameLauncherService | None = None
 
     def init_resources(self) -> None:
         Database.initialize()
@@ -130,6 +132,13 @@ class ApplicationContainer:
                 config_service=self.config_service(),
             )
         return self._game_launch_orchestrator
+
+    def game_launcher_service(self) -> GameLauncherService:
+        if self._game_launcher_service is None:
+            self._game_launcher_service = GameLauncherService(
+                config_service=self.config_service(),
+            )
+        return self._game_launcher_service
 
     def shutdown_resources(self) -> None:
         if self._capture_service is not None:

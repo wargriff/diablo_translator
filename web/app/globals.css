@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-diablo-bg text-gray-100 antialiased;
+}
+
+.card {
+  @apply rounded-xl border border-diablo-border bg-diablo-panel p-4 shadow-lg;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition;
+}
+
+.btn-primary {
+  @apply btn bg-diablo-accent text-white hover:bg-red-700;
+}
+
+.btn-ghost {
+  @apply btn border border-diablo-border bg-transparent hover:bg-white/5;
+}
+
+.input {
+  @apply w-full rounded-lg border border-diablo-border bg-black/30 px-3 py-2 text-sm outline-none focus:border-diablo-accent;
+}

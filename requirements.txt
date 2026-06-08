@@ -10,6 +10,7 @@ psutil
 python-dotenv
 mss
 speechrecognition
+sounddevice
 pyttsx3
 torch
 torchvision

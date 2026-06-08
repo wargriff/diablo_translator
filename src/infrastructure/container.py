@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from src.application.config_service import ConfigService
+from src.application.game_launcher_service import GameLauncherService
 from src.application.game_launch_orchestrator import GameLaunchOrchestrator
 from src.application.game_readiness_service import GameReadinessService
 from src.application.game_session_service import GameSessionService
@@ -12,11 +13,13 @@ from src.capture.capture_service import CaptureService
 from src.chat.chat_monitor_service import ChatMonitorService
 from src.export.export_service import ExportService
 from src.game_detection.game_detection_service import GameDetectionService
+from src.infrastructure.agent_debug_log import agent_log
 from src.infrastructure.application_container import ApplicationContainer
 from src.infrastructure.config_manager import AppConfig
 from src.translation.conversation_context import ConversationContext
 from src.translation.translation_pipeline import TranslationPipeline
 from src.ui.controllers.gameplay_controller import GameplayController
+from src.ui.services.ui_thread_bridge import UiThreadBridge
 from src.voice.speech_service import SpeechInputService, SpeechOutputService
 
 _CONTAINER: Container | None = None
@@ -25,8 +28,12 @@ _CONTAINER: Container | None = None
 class Container:
     """Facade applicative : wiring DI + callbacks voix/UI + compatibilite existante."""
 
-    def __init__(self) -> None:
+    def __init__(self, ui_bridge: UiThreadBridge | None = None) -> None:
         global _CONTAINER
+
+        self._ui_bridge = ui_bridge or UiThreadBridge()
+        self._ui_bridge.voice_text.connect(self._deliver_voice_text)
+        self._ui_bridge.translation_result.connect(self._deliver_translation_result)
 
         self._di = ApplicationContainer()
         self._di.init_resources()
@@ -34,7 +41,7 @@ class Container:
         self._translation_listener: Callable | None = None
         self._voice_listener: Callable | None = None
 
-        self.speech_input = SpeechInputService(on_text=self._on_voice_text)
+        self.speech_input = SpeechInputService(on_text=self._enqueue_voice_text)
         self._di.live_chat_service().attach_worker(self._di.translation_worker())
         self.gameplay_controller = GameplayController(
             self.live_chat,
@@ -120,6 +127,10 @@ class Container:
     def game_launch(self) -> GameLaunchOrchestrator:
         return self._di.game_launch_orchestrator()
 
+    @property
+    def game_launcher(self) -> GameLauncherService:
+        return self._di.game_launcher_service()
+
     def apply_config(self, config: AppConfig) -> None:
         self.config_service.replace(config)
         self.pipeline.reload(config)
@@ -127,7 +138,7 @@ class Container:
 
     def set_translation_listener(self, callback: Callable | None) -> None:
         self._translation_listener = callback
-        self.live_chat.set_translation_listener(callback)
+        self.live_chat.set_translation_listener(self._enqueue_translation_result)
 
     def set_status_listener(self, callback: Callable | None) -> None:
         self.live_chat.set_status_listener(callback)
@@ -143,7 +154,7 @@ class Container:
     def _configure_speech_input(self) -> None:
         config = self.config_service.config
         if config.voice_language and config.voice_language != "auto":
-            self.speech_input._language = config.voice_language
+            self._speech_input_language(config.voice_language)
             return
 
         speech_map = {
@@ -153,9 +164,44 @@ class Container:
             "es": "es-ES",
             "it": "it-IT",
         }
-        self.speech_input._language = speech_map.get(config.language, "fr-FR")
+        self._speech_input_language(speech_map.get(config.language, "fr-FR"))
 
-    def _on_voice_text(self, text: str) -> None:
+    def _speech_input_language(self, language: str) -> None:
+        self.speech_input._language = language
+
+    def _enqueue_voice_text(self, text: str) -> None:
+        import threading
+
+        # #region agent log
+        agent_log(
+            "container.py:_enqueue_voice_text",
+            "Callback voix recu",
+            hypothesis_id="A",
+            data={
+                "fromMainThread": threading.get_ident() == threading.main_thread().ident,
+                "threadName": threading.current_thread().name,
+                "isError": text.startswith("__ERROR__:"),
+            },
+        )
+        # #endregion
+        self._ui_bridge.voice_text.emit(text)
+
+    def _deliver_voice_text(self, text: str) -> None:
+        import threading
+
+        # #region agent log
+        agent_log(
+            "container.py:_deliver_voice_text",
+            "Traitement voix thread UI",
+            hypothesis_id="A",
+            data={
+                "fromMainThread": threading.get_ident() == threading.main_thread().ident,
+                "isError": text.startswith("__ERROR__:"),
+            },
+            run_id="post-fix",
+        )
+        # #endregion
+
         if text.startswith("__ERROR__:"):
             if self._voice_listener:
                 self._voice_listener(text)
@@ -167,6 +213,13 @@ class Container:
 
         if self.config.speak_translation and result.display_text:
             self.speech_output.speak(result.display_text)
+
+    def _enqueue_translation_result(self, result) -> None:
+        self._ui_bridge.translation_result.emit(result)
+
+    def _deliver_translation_result(self, result) -> None:
+        if self._translation_listener:
+            self._translation_listener(result)
 
 
 def get_container() -> Container | None:

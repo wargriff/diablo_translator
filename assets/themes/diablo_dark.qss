@@ -111,6 +111,104 @@ QTabBar::tab:hover {
     color: #e8dcc8;
 }
 
+QTabWidget#DiabloIconTabWidget::pane {
+    border: 1px solid #3d3428;
+    background: #0f0d0b;
+    top: -1px;
+}
+
+QTabWidget#DiabloIconTabWidget QTabBar::tab {
+    background: #151210;
+    border: 1px solid #2a241c;
+    min-width: 44px;
+    max-width: 44px;
+    min-height: 44px;
+    max-height: 44px;
+    padding: 8px;
+    margin-right: 3px;
+}
+
+QTabWidget#DiabloIconTabWidget QTabBar::tab:selected {
+    background: #241e16;
+    border: 1px solid #b8860b;
+    border-bottom: 2px solid #d4af37;
+}
+
+QWidget#DiagnosticBar {
+    background-color: rgba(18, 16, 14, 0.95);
+    border-top: 1px solid #3d3428;
+}
+
+QPushButton#LaunchDiabloButton {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #8b1a1a,
+        stop:0.5 #6b1010,
+        stop:1 #3d0808
+    );
+    border: 2px solid #d4af37;
+    border-radius: 4px;
+    color: #fff8e7;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 14px 28px;
+    min-height: 48px;
+}
+
+QPushButton#LaunchDiabloButton:hover {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #a02020,
+        stop:1 #5c1010
+    );
+    border-color: #f0d070;
+}
+
+QFrame#LaunchGameCard {
+    background-color: rgba(20, 17, 14, 0.92);
+    border: 1px solid #3d3428;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QFrame#LaunchGameCard[running="true"] {
+    border: 1px solid #8b6914;
+    background-color: rgba(35, 28, 18, 0.95);
+}
+
+QPushButton#LaunchGameButton {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #2a2218,
+        stop:1 #151210
+    );
+    border: 1px solid #5c4a32;
+    color: #e8dcc8;
+    padding: 10px 16px;
+    min-height: 36px;
+}
+
+QPushButton#LaunchGameButton:hover {
+    border-color: #b8860b;
+    color: #f5e6c8;
+}
+
+QWidget#LaunchTabRoot, QWidget#SettingsTabRoot {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #12100e,
+        stop:1 #080706
+    );
+}
+
+QWidget#OverlayToggleBar {
+    background-color: rgba(18, 16, 14, 0.92);
+    border: 1px solid #3d3428;
+    border-radius: 4px;
+    padding: 4px;
+}
+
 QToolBar {
     background: #151210;
     border: 1px solid #2a241c;

@@ -1,0 +1,9 @@
+{
+  "name": "Diablo Translator",
+  "short_name": "Diablo TR",
+  "start_url": "/live",
+  "display": "standalone",
+  "background_color": "#0f0f12",
+  "theme_color": "#c41e3a",
+  "icons": []
+}

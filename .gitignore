@@ -15,3 +15,11 @@ build/dist/
 build/work/
 build/easyocr_vendor/
 *.spec.bak
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins-dependencies
+backend/**/__pycache__/
+web/node_modules/
+web/.next/
+debug-c786be.log
+user_data/settings.json

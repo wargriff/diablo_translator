@@ -15,6 +15,9 @@ def run_build_verify() -> int:
         "psutil",
         "langdetect",
         "deep_translator",
+        "sounddevice",
+        "_sounddevice",
+        "speech_recognition",
         "src.infrastructure.container",
         "src.infrastructure.application_container",
         "src.application.live_chat_service",
@@ -35,8 +38,10 @@ def run_build_verify() -> int:
 
     try:
         from src.infrastructure.container import Container
+        from src.ui.services.ui_thread_bridge import UiThreadBridge
 
-        container = Container()
+        bridge = UiThreadBridge()
+        container = Container(ui_bridge=bridge)
         container.shutdown()
     except Exception as exc:
         print("VERIFY FAILED")
@@ -123,9 +128,21 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("gui", help="Lancer l'interface graphique")
     sub.add_parser("check", help="Vérifier les dépendances")
     sub.add_parser("verify", help="Vérification build exe (modules critiques)")
+    sub.add_parser("preset", help="Aperçu preset/config avant build exe")
     sub.add_parser("game", help="Détecter Diablo III, IV ou Immortal")
     sub.add_parser("stats", help="Afficher les statistiques")
     sub.add_parser("test", help="Lancer les tests unitaires")
+
+    server = sub.add_parser("server", help="Lancer l'API FastAPI (mobile / web)")
+    server.add_argument("--host", default=None, help="Hôte (défaut 0.0.0.0)")
+    server.add_argument("--port", type=int, default=None, help="Port (défaut 8000)")
+
+    web = sub.add_parser("web", help="Lancer le companion web Next.js")
+    web.add_argument("--port", type=int, default=3000, help="Port (défaut 3000)")
+    web.add_argument("--kill", action="store_true", help="Libérer le port si occupé")
+
+    mobile = sub.add_parser("mobile", help="Lancer l'app Flutter (Android / iOS)")
+    mobile.add_argument("-d", "--device", default=None, help="ID appareil Flutter")
 
     translate = sub.add_parser("translate", help="Traduire un texte")
     translate.add_argument("text", nargs="+", help="Texte à traduire")
@@ -158,6 +175,11 @@ def dispatch(args: argparse.Namespace) -> int:
     if command == "verify":
         return run_build_verify()
 
+    if command == "preset":
+        from src.programs.preset_preview import run_preset_preview
+
+        return run_preset_preview()
+
     if command == "translate":
         return run_translate(" ".join(args.text))
 
@@ -174,6 +196,21 @@ def dispatch(args: argparse.Namespace) -> int:
         from tests.run_tests import run_tests
 
         return run_tests()
+
+    if command == "server":
+        from launcher.server import run_server
+
+        return run_server(host=args.host, port=args.port)
+
+    if command == "web":
+        from launcher.web import run_web
+
+        return run_web(port=args.port, kill=args.kill)
+
+    if command == "mobile":
+        from launcher.mobile import run_mobile
+
+        return run_mobile(device=args.device)
 
     if command == "gui":
         missing = []

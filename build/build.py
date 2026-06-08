@@ -282,6 +282,12 @@ def main(argv: list[str] | None = None) -> int:
     print("Diablo Translator — Build Pipeline Pro")
     print(f"Projet : {PROJECT_ROOT}")
 
+    from src.programs.preset_preview import format_preset_preview
+
+    print()
+    print(format_preset_preview())
+    print()
+
     if _run_pre_build(run_tests=run_tests) != 0:
         return 1
 

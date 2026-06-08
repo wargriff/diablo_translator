@@ -58,6 +58,10 @@ class AppConfig:
     ui_font_size: int = 10
     cache_max_entries: int = 2000
     min_text_length: int = 2
+    d3_exe_path: str = ""
+    d4_exe_path: str = ""
+    immortal_exe_path: str = ""
+    preferred_launch_game: str = "d4"
 
 
 class ConfigManager:
@@ -145,6 +149,14 @@ class ConfigManager:
             config.startup_delay_seconds = 0
             config.game_startup_grace_seconds = min(config.game_startup_grace_seconds, 8)
             version = 10
+            migrated = True
+
+        if version < 11:
+            config.d3_exe_path = getattr(config, "d3_exe_path", "") or ""
+            config.d4_exe_path = getattr(config, "d4_exe_path", "") or ""
+            config.immortal_exe_path = getattr(config, "immortal_exe_path", "") or ""
+            config.preferred_launch_game = getattr(config, "preferred_launch_game", "d4") or "d4"
+            version = 11
             migrated = True
 
         if migrated:

@@ -18,7 +18,9 @@ from PyQt6.QtWidgets import (
 
 from src.domain.models.translation_result import TranslationResult
 from src.infrastructure.asset_manager import AssetManager
+from src.infrastructure.agent_debug_log import agent_log
 from src.infrastructure.container import Container
+from src.ui.services.diagnostic_service import DiagnosticService
 from src.ui.widgets.game_status_panel import GameStatusPanel
 from src.voice.speech_service import SpeechInputService
 
@@ -61,6 +63,7 @@ class GameplayWidget(QWidget):
         self._shortcuts: list[QShortcut] = []
         self._last_ocr_status_message = ""
         self._ocr_started_at: float | None = None
+        self._diagnostics = DiagnosticService.instance()
 
         self.translate_button = QPushButton(" Traduire")
         self.translate_button.setObjectName("PrimaryButton")
@@ -88,18 +91,11 @@ class GameplayWidget(QWidget):
         self.refresh_button = QPushButton(" Actualiser")
         self.refresh_button.setToolTip("Actualiser l'état des jeux (Ctrl+Shift+R)")
 
-        self.compact_start_button = QPushButton(" OCR")
-        self.compact_start_button.setObjectName("CompactOcrButton")
-        self.compact_start_button.setIcon(AssetManager.icon("play"))
-        self.compact_start_button.setToolTip("Lire le chat Diablo via OCR")
-        self.compact_stop_button = QPushButton(" Stop")
-        self.compact_stop_button.setObjectName("CompactOcrButton")
-        self.compact_stop_button.setIcon(AssetManager.icon("stop"))
-        self.compact_stop_button.setToolTip("Arrêter la surveillance OCR")
-        self.compact_settings_button = QPushButton(" Réglages")
-        self.compact_settings_button.setObjectName("CompactOcrButton")
-        self.compact_settings_button.setIcon(AssetManager.icon("settings"))
-        self.compact_settings_button.setToolTip("Ouvrir les paramètres")
+        self.journal_button = QPushButton(" Journal")
+        self.journal_button.setObjectName("CompactOcrButton")
+        self.journal_button.setIcon(AssetManager.app_icon())
+        self.journal_button.setToolTip("Voir erreurs et événements")
+        self.journal_button.clicked.connect(self._open_diagnostic_journal)
 
         self.last_translation_label = QLabel("Dernière traduction : en attente...")
         self.last_translation_label.setObjectName("MutedText")
@@ -118,22 +114,19 @@ class GameplayWidget(QWidget):
         self.start_button.clicked.connect(self.start_worker)
         self.stop_button.clicked.connect(self.stop_worker)
         self.refresh_button.clicked.connect(self.refresh_game_status)
-        self.compact_start_button.clicked.connect(self.start_worker)
-        self.compact_stop_button.clicked.connect(self.stop_worker)
-        self.compact_settings_button.clicked.connect(self.open_settings_requested.emit)
 
         self._setup_shortcuts()
 
-        compact_ocr_row = QHBoxLayout()
-        compact_ocr_row.setSpacing(6)
-        compact_ocr_row.addWidget(self.compact_start_button)
-        compact_ocr_row.addWidget(self.compact_stop_button)
-        compact_ocr_row.addWidget(self.compact_settings_button)
-        compact_ocr_row.addStretch()
-        self.compact_ocr_bar = QWidget()
-        self.compact_ocr_bar.setObjectName("CompactOcrBar")
-        self.compact_ocr_bar.setLayout(compact_ocr_row)
-        self.compact_ocr_bar.setVisible(False)
+        ocr_row = QHBoxLayout()
+        ocr_row.setSpacing(6)
+        ocr_row.addWidget(self.start_button)
+        ocr_row.addWidget(self.stop_button)
+        ocr_row.addWidget(self.refresh_button)
+        ocr_row.addWidget(self.journal_button)
+        ocr_row.addStretch()
+        self.ocr_control_bar = QWidget()
+        self.ocr_control_bar.setObjectName("CompactOcrBar")
+        self.ocr_control_bar.setLayout(ocr_row)
 
         input_row = QHBoxLayout()
         input_row.addWidget(self.chat_input, stretch=1)
@@ -142,9 +135,7 @@ class GameplayWidget(QWidget):
         input_row.addWidget(self.voice_button)
 
         auto_row = QHBoxLayout()
-        auto_row.addWidget(self.start_button)
-        auto_row.addWidget(self.stop_button)
-        auto_row.addWidget(self.refresh_button)
+        auto_row.addWidget(self.auto_status_label)
         auto_row.addStretch()
 
         self.monitor_panel = QWidget()
@@ -152,7 +143,6 @@ class GameplayWidget(QWidget):
         monitor_panel_layout.setContentsMargins(0, 0, 0, 0)
         monitor_panel_layout.setSpacing(8)
         monitor_panel_layout.addLayout(auto_row)
-        monitor_panel_layout.addWidget(self.auto_status_label)
         monitor_panel_layout.addWidget(self.last_translation_label)
         self.monitor_panel.setLayout(monitor_panel_layout)
 
@@ -171,7 +161,7 @@ class GameplayWidget(QWidget):
         chat_title = self._section_title("TRADUCTIONS LIVE")
         layout.addWidget(chat_title)
         layout.addWidget(chat_panel)
-        layout.addWidget(self.compact_ocr_bar)
+        layout.addWidget(self.ocr_control_bar)
         layout.addLayout(input_row)
 
         monitor_title = self._section_title("SURVEILLANCE OCR")
@@ -201,7 +191,9 @@ class GameplayWidget(QWidget):
         for widget in self._compact_hidden:
             widget.setVisible(not enabled)
 
-        self.compact_ocr_bar.setVisible(enabled)
+        self.ocr_control_bar.setVisible(True)
+        self.start_button.setText(" OCR" if enabled else " Surveiller chat")
+        self.stop_button.setText(" Stop" if enabled else " Arrêter")
         self.chat_log.setMinimumHeight(120 if enabled else 260)
         self._apply_ingame_mode()
         self._apply_welcome_message(enabled)
@@ -333,6 +325,35 @@ class GameplayWidget(QWidget):
             "#8a8278",
         )
 
+    def _open_diagnostic_journal(self) -> None:
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtWidgets import QDialog, QPushButton, QTextEdit, QVBoxLayout
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Diablo Translator — Journal diagnostic")
+        dialog.setMinimumSize(520, 360)
+        dialog.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+
+        text = QTextEdit()
+        text.setReadOnly(True)
+        text.setFont(AssetManager.monospace_font(9))
+        lines: list[str] = []
+        for event in self._diagnostics.events():
+            line = f"[{event.level.upper()}] {event.source}: {event.message}"
+            if event.detail:
+                line += f"\n    {event.detail}"
+            lines.append(line)
+        text.setPlainText("\n\n".join(lines) if lines else "Aucun événement pour le moment.")
+
+        close_button = QPushButton("Fermer")
+        close_button.clicked.connect(dialog.accept)
+
+        layout = QVBoxLayout()
+        layout.addWidget(text)
+        layout.addWidget(close_button, alignment=Qt.AlignmentFlag.AlignRight)
+        dialog.setLayout(layout)
+        dialog.exec()
+
     def toggle_voice_input(self) -> None:
         if self._voice_busy:
             return
@@ -340,23 +361,51 @@ class GameplayWidget(QWidget):
         if self.controller.speech_input.is_listening:
             self.controller.speech_input.stop()
             self._reset_voice_button()
+            self._diagnostics.set_micro("OFF")
             self._append_system_message("Microphone désactivé.")
             return
 
         available, error = SpeechInputService.check_availability()
+        # #region agent log
+        agent_log(
+            "gameplay_widget.py:toggle_voice_input",
+            "Toggle micro",
+            hypothesis_id="C",
+            run_id="user-verify",
+            data={"available": available, "error": error},
+        )
+        # #endregion
         if not available:
             self._reset_voice_button()
+            self._diagnostics.set_micro("ERR")
+            self._diagnostics.record("Micro", error, level="error")
             self._append_chat_line("Erreur", error, "#c0392b")
             return
 
         self._voice_busy = True
-        started = self.controller.speech_input.start()
+        try:
+            started = self.controller.speech_input.start()
+        except Exception as exc:
+            # #region agent log
+            agent_log(
+                "gameplay_widget.py:toggle_voice_input",
+                "Exception start micro",
+                hypothesis_id="D",
+                data={"error": str(exc)},
+            )
+            # #endregion
+            self._diagnostics.record("Micro", f"Crash activation : {exc}", level="critical")
+            self._reset_voice_button()
+            self._voice_busy = False
+            return
         self._voice_busy = False
 
         if not started or not self.controller.speech_input.is_listening:
             self._reset_voice_button()
+            self._diagnostics.set_micro("ERR")
             return
 
+        self._diagnostics.set_micro("ON")
         self.voice_button.setText(" Micro ON")
         self._append_system_message(
             "Microphone actif — parlez pour traduire automatiquement."
@@ -373,6 +422,8 @@ class GameplayWidget(QWidget):
         if error:
             self._append_system_message(error)
             return
+
+        self._diagnostics.set_ocr("ON")
 
         self._ocr_started_at = time.time()
         status = self.controller.scan_games()
@@ -392,6 +443,7 @@ class GameplayWidget(QWidget):
 
     def stop_worker(self) -> None:
         self.controller.stop_monitoring()
+        self._diagnostics.set_ocr("OFF")
         self.auto_status_label.setText("Surveillance chat : arrêtée")
         self._append_system_message("Surveillance chat arrêtée.")
         self._notify_status_update()
@@ -563,9 +615,12 @@ class GameplayWidget(QWidget):
         if isinstance(payload, str) and payload.startswith("__ERROR__:"):
             self._reset_voice_button()
             self.controller.speech_input.stop()
+            message = payload.replace("__ERROR__:", "")
+            self._diagnostics.set_micro("ERR")
+            self._diagnostics.record("Micro", message, level="error")
             self._append_chat_line(
                 "Erreur",
-                payload.replace("__ERROR__:", ""),
+                message,
                 "#c0392b",
             )
             return
@@ -576,6 +631,7 @@ class GameplayWidget(QWidget):
     def refresh_game_status(self) -> None:
         status = self.controller.scan_games()
         self.game_status.update_status(status)
+        self._diagnostics.set_game("ON" if status.is_any_running else "OFF")
         self._refresh_provider_label()
 
         monitor_mode = (

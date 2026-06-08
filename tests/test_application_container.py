@@ -24,12 +24,16 @@ class ApplicationContainerTests(unittest.TestCase):
         container.shutdown_resources()
 
     def test_container_facade_boots_and_shuts_down(self) -> None:
-        from src.infrastructure.container import Container
+        from PyQt6.QtWidgets import QApplication
 
-        app = Container()
-        self.assertIsNotNone(app.pipeline)
-        self.assertIsNotNone(app.game_launch)
-        app.shutdown()
+        app = QApplication.instance() or QApplication([])
+        from src.infrastructure.container import Container
+        from src.ui.services.ui_thread_bridge import UiThreadBridge
+
+        container = Container(ui_bridge=UiThreadBridge())
+        self.assertIsNotNone(container.pipeline)
+        self.assertIsNotNone(container.game_launch)
+        container.shutdown()
 
 
 if __name__ == "__main__":

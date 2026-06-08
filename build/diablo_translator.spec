@@ -26,6 +26,7 @@ hiddenimports = [
     "psutil",
     "speech_recognition",
     "sounddevice",
+    "_sounddevice",
     "langdetect",
     "langdetect.detector_factory",
     "easyocr",
@@ -60,16 +61,17 @@ easyocr_vendor_dir = build_dir / "easyocr_vendor"
 if easyocr_vendor_dir.is_dir():
     datas.append((str(easyocr_vendor_dir), "easyocr_vendor"))
 
-for package in ("cv2", "torch", "scipy", "numpy", "shapely", "PyQt6"):
+for package in ("cv2", "torch", "scipy", "numpy", "shapely", "PyQt6", "sounddevice"):
     try:
         binaries += collect_dynamic_libs(package)
     except Exception:
         pass
 
-try:
-    datas += collect_data_files("langdetect")
-except Exception:
-    pass
+for package in ("langdetect", "_sounddevice_data"):
+    try:
+        datas += collect_data_files(package)
+    except Exception:
+        pass
 
 a = Analysis(
     [str(project_root / "launcher.py")],
