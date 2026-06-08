@@ -79,6 +79,7 @@ export type Settings = {
   chat_monitor_enabled: boolean;
   voice_input_enabled: boolean;
   speak_translation: boolean;
+  hub_sounds_enabled: boolean;
   preferred_launch_game: string;
   ocr_languages: string;
   deepl_api_key_set: boolean;
@@ -99,6 +100,9 @@ export type Stats = {
   recent_count: number;
   translator: string;
   language: string;
+  translations_today?: number;
+  unique_sources?: number;
+  api_version?: string;
 };
 
 export type LogsPayload = {
@@ -129,16 +133,31 @@ export const api = {
     const payload = await request<unknown>(`/api/v1/messages?limit=${limit}`);
     return asArray<MessageItem>(payload);
   },
-  translate: (text: string) =>
+  translate: (text: string, sourceLanguage?: string, targetLanguage?: string) =>
     request<TranslateResult>("/api/v1/translate", {
       method: "POST",
-      body: JSON.stringify({ text, origin: "user" }),
+      body: JSON.stringify({
+        text,
+        origin: "user",
+        source_language: sourceLanguage,
+        target_language: targetLanguage,
+      }),
     }),
-  compose: (text: string) =>
-    request<{ source_text: string; translated_text: string; character_count: number }>(
-      "/api/v1/reply/compose",
-      { method: "POST", body: JSON.stringify({ text }) },
-    ),
+  compose: (text: string, sourceLanguage: string, targetLanguage: string) =>
+    request<{
+      source_text: string;
+      translated_text: string;
+      character_count: number;
+      source_language?: string | null;
+      target_language?: string | null;
+    }>("/api/v1/reply/compose", {
+      method: "POST",
+      body: JSON.stringify({
+        text,
+        source_language: sourceLanguage,
+        target_language: targetLanguage,
+      }),
+    }),
   quickReplies: async () => {
     const payload = await request<unknown>("/api/v1/reply/quick");
     return asArray<QuickReply>(payload);
@@ -152,6 +171,13 @@ export const api = {
   gameStatus: () => request<GameStatus>("/api/v1/game/status"),
   stats: () => request<Stats>("/api/v1/stats"),
   logs: (lines = 80) => request<LogsPayload>(`/api/v1/logs?lines=${lines}`),
+  liveSocketUrl: () => {
+    const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+    if (configured) {
+      return `${configured.replace(/^http/, "ws").replace(/\/$/, "")}/ws/v1/live`;
+    }
+    return "ws://127.0.0.1:8000/ws/v1/live";
+  },
 };
 
 export { API_BASE };

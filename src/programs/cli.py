@@ -126,6 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("gui", help="Lancer l'interface graphique")
+    sub.add_parser("menu", help="Sanctuaire Hub — lanceur style web D4")
     sub.add_parser("check", help="Vérifier les dépendances")
     sub.add_parser("verify", help="Vérification build exe (modules critiques)")
     sub.add_parser("preset", help="Aperçu preset/config avant build exe")
@@ -165,7 +166,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def dispatch(args: argparse.Namespace) -> int:
-    command = args.command or "gui"
+    command = args.command or "menu"
 
     if command == "check":
         from src.programs.dependency_checker import print_dependency_report
@@ -211,6 +212,11 @@ def dispatch(args: argparse.Namespace) -> int:
         from launcher.mobile import run_mobile
 
         return run_mobile(device=args.device)
+
+    if command == "menu":
+        from launcher.hub import run_hub
+
+        return run_hub()
 
     if command == "gui":
         missing = []

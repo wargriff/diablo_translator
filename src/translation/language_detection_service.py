@@ -88,11 +88,21 @@ class LanguageDetectionService:
         if len(cleaned) < 2:
             return None
 
+        if re.search(r"[àâäéèêëïîôùûüç]", cleaned, re.I):
+            return "fr"
+
+        heuristic = self._heuristic_language(cleaned)
+        if heuristic:
+            return heuristic
+
         try:
             from langdetect import DetectorFactory, detect
 
             DetectorFactory.seed = 0
-            return detect(cleaned)
+            detected = detect(cleaned)
+            if detected in {"ca", "pt"} and self._FRENCH_WORDS.search(cleaned):
+                return "fr"
+            return detected
         except Exception:
             return None
 
@@ -152,7 +162,11 @@ class LanguageDetectionService:
 
             DetectorFactory.seed = 0
             probabilities = detect_langs(cleaned)
-            if len(probabilities) >= 2 and probabilities[1].prob >= 0.12:
+            if (
+                len(cleaned) >= 28
+                and len(probabilities) >= 2
+                and probabilities[1].prob >= 0.35
+            ):
                 return True
         except Exception:
             pass

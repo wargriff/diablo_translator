@@ -1,0 +1,227 @@
+QMenuBar#HubMenuBar {
+    background-color: #14120f;
+    color: #c9a227;
+    border-bottom: 1px solid #2a2520;
+    padding: 2px 4px;
+    spacing: 2px;
+}
+
+QMenuBar#HubMenuBar::item {
+    background: transparent;
+    padding: 5px 10px;
+    color: #9a9288;
+    border-radius: 4px;
+}
+
+QMenuBar#HubMenuBar::item:selected {
+    background-color: #2a2520;
+    color: #e8dcc8;
+}
+
+QMenu {
+    background-color: #14110e;
+    color: #e8dcc8;
+    border: 1px solid #3d2e1f;
+}
+
+QMenu::item:selected {
+    background-color: #3a2020;
+}
+
+QFrame#HubSidebar {
+    background-color: rgba(18, 16, 14, 0.98);
+    border: 1px solid #2a2520;
+    border-radius: 8px;
+}
+
+QLabel#HubEmblem {
+    font-size: 24px;
+    color: #c9a227;
+}
+
+QPushButton#HubPillButton {
+    background-color: #1e1b18;
+    color: #c9c2b8;
+    border: 1px solid #3a3530;
+    border-radius: 14px;
+    padding: 6px 14px;
+    min-height: 28px;
+    font-size: 12px;
+}
+
+QPushButton#HubPillButton:hover {
+    background-color: #2a2520;
+    border-color: #5c4a32;
+    color: #f5e6c8;
+}
+
+QPushButton#HubPillButton:checked,
+QPushButton#HubPillButton[active="true"] {
+    background-color: #3a2020;
+    border-color: #8b6914;
+    color: #c9a227;
+}
+
+QPushButton#HubPillButton[running="true"] {
+    border-color: #7cb342;
+    color: #d4efae;
+}
+
+QPushButton#HubPrimaryPill {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8b1a2a, stop:1 #5c1018);
+    color: #fff8e7;
+    border: 1px solid #8b6914;
+    border-radius: 14px;
+    padding: 7px 16px;
+    min-height: 30px;
+    font-weight: 600;
+}
+
+QPushButton#HubPrimaryPill:hover {
+    background-color: #a82030;
+}
+
+QPushButton#HubAccentPill {
+    background-color: #1a2840;
+    color: #9ec5fe;
+    border: 1px solid #2d4a72;
+    border-radius: 14px;
+    padding: 6px 14px;
+    min-height: 28px;
+    font-size: 12px;
+}
+
+QPushButton#HubAccentPill:hover {
+    background-color: #243650;
+    border-color: #4a7ab8;
+    color: #cfe4ff;
+}
+
+QPushButton#HubNavButton {
+    background: transparent;
+    color: #8a8278;
+    border: 1px solid transparent;
+    text-align: left;
+    padding: 7px 10px;
+    border-radius: 8px;
+}
+
+QPushButton#HubNavButton:hover {
+    background-color: #2a2520;
+    color: #e8dcc8;
+}
+
+QFrame#HubHeader {
+    background-color: #12100e;
+    border: 1px solid #2a2520;
+    border-radius: 8px;
+}
+
+QLabel#HubHeaderTitle {
+    color: #c9a227;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 3px;
+}
+
+QLabel#HubBadgeOnline {
+    background-color: rgba(124, 179, 66, 0.12);
+    color: #7cb342;
+    border: 1px solid rgba(124, 179, 66, 0.35);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+}
+
+QLabel#HubBadgeOffline {
+    background-color: #1e1b18;
+    color: #6b6560;
+    border: 1px solid #2a2520;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+}
+
+QFrame#HubTabStrip {
+    background: transparent;
+    border: none;
+}
+
+QFrame#HubHistoryPanel {
+    background-color: rgba(14, 12, 10, 0.96);
+    border: 1px solid #2a2520;
+    border-radius: 8px;
+}
+
+QScrollArea#HubHistoryScroll {
+    background: transparent;
+    border: none;
+}
+
+QFrame#HubHistoryItem {
+    background-color: #12100e;
+    border: 1px solid #2a2520;
+    border-left: 2px solid #8b6914;
+    border-radius: 6px;
+}
+
+QLabel#HubHistoryMeta {
+    color: #8b6914;
+    font-size: 10px;
+}
+
+QLabel#HubHistoryText {
+    color: #f5e6c8;
+    font-size: 13px;
+}
+
+QFrame#HubSection {
+    background: transparent;
+    border: none;
+}
+
+QLabel#HubSectionLabel {
+    color: #6b6560;
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+QFrame#HubTranslatorPanel {
+    min-width: 760px;
+}
+
+QTextEdit#HubSourceEdit, QTextEdit#HubTargetEdit {
+    background-color: rgba(8, 7, 6, 0.95);
+    color: #f5e6c8;
+    border: 1px solid #3d3428;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14px;
+}
+
+QTextEdit#HubTargetEdit {
+    color: #c9a227;
+    border-color: #8b6914;
+}
+
+QComboBox#HubLangCombo {
+    background-color: #1e1b18;
+    color: #e8dcc8;
+    border: 1px solid #3a3530;
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-width: 130px;
+}
+
+QPushButton#HubSwapButton {
+    background-color: #1a2840;
+    color: #9ec5fe;
+    border: 1px solid #2d4a72;
+    border-radius: 22px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+QPushButton#HubSwapButton:hover {
+    background-color: #243650;
+}

@@ -46,9 +46,11 @@ class TranslationPipeline:
         source_text: str,
         *,
         origin: str = "chat",
+        source_language: str | None = None,
+        target_language: str | None = None,
     ) -> TranslationResult:
         provider = self.translator.provider_name
-        preview_target = self._preview_target(source_text, origin)
+        preview_target = target_language or self._preview_target(source_text, origin)
 
         cached = self.cache.get(source_text, preview_target, provider)
         if cached:
@@ -68,7 +70,12 @@ class TranslationPipeline:
                 incoming=origin == "chat",
             )
 
-        result = self.translator.translate(source_text, origin=origin)
+        result = self.translator.translate(
+            source_text,
+            origin=origin,
+            source_language=source_language,
+            target_language=target_language,
+        )
         if result.translated_text and not result.skipped:
             self.cache.set(
                 source_text,
@@ -108,9 +115,12 @@ class TranslationPipeline:
 
         if origin in {"user", "voice"}:
             detected = self.translator.detect_language(source_text, origin=origin)
+            peer = self.translator.reply_language()
             if self.translator.is_home_language(detected):
-                return self.translator.reply_language()
-            return home
+                return peer
+            if self.translator.is_reply_language(detected):
+                return home
+            return peer
 
         return home
 

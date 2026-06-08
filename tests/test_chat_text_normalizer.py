@@ -42,11 +42,11 @@ class TranslationDirectionTests(unittest.TestCase):
         target = service._resolve_target("fr", "user", "fr")
         self.assertEqual(target, "en")
 
-    def test_manual_english_keeps_peer_language(self):
+    def test_manual_english_targets_home_language(self):
         config = AppConfig(language="fr", bidirectional_mode=True, default_reply_language="en")
         service = TranslationService(config, ConversationContext())
         target = service._resolve_target("en", "user", "fr")
-        self.assertEqual(target, "en")
+        self.assertEqual(target, "fr")
 
 
 if __name__ == "__main__":

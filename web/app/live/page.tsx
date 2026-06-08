@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { api, type MessageItem } from "@/lib/api";
+
+function mergeMessages(existing: MessageItem[], incoming: MessageItem[]): MessageItem[] {
+  const map = new Map<number, MessageItem>();
+  for (const item of [...incoming, ...existing]) {
+    map.set(item.id, item);
+  }
+  return Array.from(map.values()).sort((a, b) => b.id - a.id);
+}
 
 export default function LivePage() {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [liveMode, setLiveMode] = useState<"websocket" | "poll">("poll");
+  const socketRef = useRef<WebSocket | null>(null);
 
   async function load() {
     setLoading(true);
@@ -25,15 +35,67 @@ export default function LivePage() {
 
   useEffect(() => {
     void load();
-    const timer = setInterval(() => void load(), 5000);
-    return () => clearInterval(timer);
+
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let socket: WebSocket | null = null;
+
+    function startPolling() {
+      if (pollTimer) {
+        return;
+      }
+      setLiveMode("poll");
+      pollTimer = setInterval(() => void load(), 5000);
+    }
+
+    try {
+      socket = new WebSocket(api.liveSocketUrl());
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        setLiveMode("websocket");
+        socket?.send("ping");
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data) as MessageItem & { type?: string };
+          if (payload.type === "translation" && payload.id) {
+            setMessages((current) => mergeMessages(current, [payload]));
+          }
+        } catch {
+          void load();
+        }
+      };
+
+      socket.onerror = () => {
+        socket?.close();
+      };
+
+      socket.onclose = () => {
+        startPolling();
+      };
+    } catch {
+      startPolling();
+    }
+
+    return () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+      }
+      socket?.close();
+      socketRef.current = null;
+    };
   }, []);
 
   return (
     <div>
       <PageHeader
         title="Live Chat"
-        subtitle="Flux des traductions OCR en temps réel"
+        subtitle={
+          liveMode === "websocket"
+            ? "Flux temps réel via WebSocket"
+            : "Flux via polling (5 s) — WebSocket indisponible"
+        }
         action={
           <button className="btn-ghost" onClick={() => void load()}>
             Actualiser

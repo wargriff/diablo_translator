@@ -61,6 +61,7 @@ class AppConfig:
     d3_exe_path: str = ""
     d4_exe_path: str = ""
     immortal_exe_path: str = ""
+    hub_sounds_enabled: bool = True
     preferred_launch_game: str = "d4"
 
 

@@ -32,16 +32,25 @@ class TranslationService:
     def provider_name(self) -> str:
         return self._provider.name
 
-    def translate(self, source_text: str, *, origin: str = "chat") -> TranslationResult:
+    def translate(
+        self,
+        source_text: str,
+        *,
+        origin: str = "chat",
+        source_language: str | None = None,
+        target_language: str | None = None,
+    ) -> TranslationResult:
         cleaned = source_text.strip()
         home = normalize_language(self._config.language) or "fr"
+        explicit_target = normalize_language(target_language) if target_language else None
+        explicit_source = normalize_language(source_language) if source_language else None
 
         if not cleaned:
             return TranslationResult(
                 source_text="",
                 translated_text="",
                 source_language=None,
-                target_language=home,
+                target_language=explicit_target or home,
                 provider=self._provider.name,
             )
 
@@ -49,14 +58,15 @@ class TranslationService:
             return TranslationResult(
                 source_text=cleaned,
                 translated_text=cleaned,
-                source_language=None,
-                target_language=home,
+                source_language=explicit_source,
+                target_language=explicit_target or home,
                 provider=self._provider.name,
                 skipped=True,
             )
 
         if (
-            self._config.preserve_mixed_language
+            explicit_target is None
+            and self._config.preserve_mixed_language
             and origin in {"user", "voice"}
             and self._language_detector.is_mixed_language(cleaned)
         ):
@@ -70,34 +80,35 @@ class TranslationService:
                 preserved_mixed=True,
             )
 
-        source_language = None
-        if self._config.auto_detect_language:
-            source_language = self.detect_language(cleaned, origin=origin)
+        detected_source = explicit_source
+        if detected_source is None and self._config.auto_detect_language:
+            detected_source = self.detect_language(cleaned, origin=origin)
 
-        if origin == "chat" and not source_language and cleaned.isascii():
-            source_language = self._config.default_reply_language
+        if origin == "chat" and not detected_source and cleaned.isascii():
+            detected_source = self._config.default_reply_language
 
-        target_language = self._resolve_target(source_language, origin, home)
+        resolved_target = explicit_target or self._resolve_target(detected_source, origin, home)
 
-        if self._language_detector.is_same_language(source_language, target_language):
+        if self._language_detector.is_same_language(detected_source, resolved_target):
             return TranslationResult(
                 source_text=cleaned,
                 translated_text=cleaned,
-                source_language=source_language,
-                target_language=target_language,
+                source_language=detected_source,
+                target_language=resolved_target,
                 provider=self._provider.name,
                 skipped=True,
             )
 
         if (
-            not self._config.bidirectional_mode
+            explicit_target is None
+            and not self._config.bidirectional_mode
             and self._config.auto_detect_language
-            and self._language_detector.is_same_language(source_language, home)
+            and self._language_detector.is_same_language(detected_source, home)
         ):
             return TranslationResult(
                 source_text=cleaned,
                 translated_text=cleaned,
-                source_language=source_language,
+                source_language=detected_source,
                 target_language=home,
                 provider=self._provider.name,
                 skipped=True,
@@ -105,18 +116,18 @@ class TranslationService:
 
         translated = self._provider.translate(
             cleaned,
-            source_language=source_language,
-            target_language=target_language,
+            source_language=detected_source,
+            target_language=resolved_target,
         )
 
-        if origin == "chat" and not self.is_home_language(source_language):
-            self._conversation.remember_foreign(source_language, home)
+        if origin == "chat" and not self.is_home_language(detected_source):
+            self._conversation.remember_foreign(detected_source, home)
 
         return TranslationResult(
             source_text=cleaned,
             translated_text=translated,
-            source_language=source_language,
-            target_language=target_language,
+            source_language=detected_source,
+            target_language=resolved_target,
             provider=self._provider.name,
             outgoing=origin in {"user", "voice"},
             incoming=origin == "chat",
@@ -136,10 +147,10 @@ class TranslationService:
                 self._conversation.last_foreign_language
                 or self._config.default_reply_language
             ) or "en"
-            if self._language_detector.is_same_language(source_language, peer):
-                return peer
             if self._language_detector.is_same_language(source_language, home):
                 return peer
+            if self._language_detector.is_same_language(source_language, peer):
+                return home
             return peer
 
         if self._language_detector.is_same_language(source_language, home):
@@ -160,6 +171,12 @@ class TranslationService:
         return self._language_detector.is_same_language(
             language_code,
             self._config.language,
+        )
+
+    def is_reply_language(self, language_code: str | None) -> bool:
+        return self._language_detector.is_same_language(
+            language_code,
+            self.reply_language(),
         )
 
     def reply_language(self) -> str:

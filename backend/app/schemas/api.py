@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 class TranslateRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
     origin: str = "user"
+    source_language: str | None = None
+    target_language: str | None = None
 
 
 class TranslateResponse(BaseModel):
@@ -27,12 +29,16 @@ class MessageItem(BaseModel):
 
 class ComposeRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
+    source_language: str | None = None
+    target_language: str | None = None
 
 
 class ComposeResponse(BaseModel):
     source_text: str
     translated_text: str
     character_count: int
+    source_language: str | None = None
+    target_language: str | None = None
 
 
 class QuickReplyItem(BaseModel):
@@ -51,6 +57,7 @@ class SettingsResponse(BaseModel):
     chat_monitor_enabled: bool
     voice_input_enabled: bool
     speak_translation: bool
+    hub_sounds_enabled: bool = True
     preferred_launch_game: str
     ocr_languages: str
     deepl_api_key_set: bool
@@ -66,6 +73,7 @@ class SettingsUpdateRequest(BaseModel):
     chat_monitor_enabled: bool | None = None
     voice_input_enabled: bool | None = None
     speak_translation: bool | None = None
+    hub_sounds_enabled: bool | None = None
     preferred_launch_game: str | None = None
     ocr_languages: str | None = None
     deepl_api_key: str | None = None
@@ -82,6 +90,9 @@ class StatsResponse(BaseModel):
     recent_count: int
     translator: str
     language: str
+    translations_today: int = 0
+    unique_sources: int = 0
+    api_version: str = "2.1.0"
 
 
 class LogsResponse(BaseModel):

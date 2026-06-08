@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cinzel, Crimson_Pro } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   title: "Diablo Translator — Sanctuaire",
   description: "Traduction multilingue en temps réel — thème Diablo IV",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
   themeColor: "#8b0000",
 };
 

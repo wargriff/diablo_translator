@@ -28,8 +28,11 @@ export default function StatisticsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard label="Messages total" value={stats?.message_count ?? "—"} accent />
           <StatCard label="Messages récents" value={stats?.recent_count ?? "—"} />
+          <StatCard label="Aujourd'hui" value={stats?.translations_today ?? "—"} />
+          <StatCard label="Textes uniques" value={stats?.unique_sources ?? "—"} />
           <StatCard label="Traducteur" value={stats?.translator ?? "—"} />
           <StatCard label="Langue" value={stats?.language ?? "—"} />
+          <StatCard label="API" value={stats?.api_version ?? "—"} />
           <StatCard
             label="Jeu détecté"
             value={game?.running ? game.games.map((g) => g.short_title).join(", ") : "Aucun"}

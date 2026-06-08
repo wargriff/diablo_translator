@@ -4,6 +4,7 @@ const apiOrigin = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ["127.0.0.1", "localhost", "10.188.34.133"],
   async rewrites() {
     return [
       {

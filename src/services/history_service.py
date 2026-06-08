@@ -16,9 +16,9 @@ class HistoryService:
         translated: str,
         source_language: str | None = None,
         target_language: str | None = None,
-    ) -> None:
+    ) -> TranslationRecord:
         with sqlite3.connect(Database.DB_PATH) as conn:
-            conn.execute(
+            cursor = conn.execute(
                 """
                 INSERT INTO translations
                     (source_text, translated_text, source_language, target_language)
@@ -27,8 +27,33 @@ class HistoryService:
                 (source_text, translated, source_language, target_language),
             )
             conn.commit()
+            row_id = cursor.lastrowid
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                """
+                SELECT id, source_text, translated_text,
+                       source_language, target_language, created_at
+                FROM translations
+                WHERE id = ?
+                """,
+                (row_id,),
+            ).fetchone()
 
-    def list_recent(self, limit: int = 50) -> list[TranslationRecord]:
+        record = TranslationRecord(
+            id=row["id"],
+            source_text=row["source_text"],
+            translated_text=row["translated_text"],
+            source_language=row["source_language"],
+            target_language=row["target_language"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+        )
+
+        from src.services.history_events import emit_translation_added
+
+        emit_translation_added(record)
+        return record
+
+    def list_recent(self, limit: int = 50, offset: int = 0) -> list[TranslationRecord]:
         with sqlite3.connect(Database.DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -37,9 +62,9 @@ class HistoryService:
                        source_language, target_language, created_at
                 FROM translations
                 ORDER BY id DESC
-                LIMIT ?
+                LIMIT ? OFFSET ?
                 """,
-                (limit,),
+                (limit, offset),
             ).fetchall()
 
         return [

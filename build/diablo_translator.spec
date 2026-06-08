@@ -13,6 +13,8 @@ manifest_path = build_dir / "app.manifest"
 runtime_hook = str(build_dir / "runtime_hooks" / "pyi_rth_win_dll.py")
 
 src_hiddenimports = collect_submodules("src")
+launcher_hiddenimports = collect_submodules("launcher")
+backend_hiddenimports = collect_submodules("backend")
 
 hiddenimports = [
     "PyQt6",
@@ -49,11 +51,22 @@ hiddenimports = [
     "src.infrastructure.container",
     "src.bootstrap.app",
     "src.programs.cli",
-] + src_hiddenimports
+    "launcher.hub",
+    "launcher.processes",
+    "launcher.hub_sounds",
+    "launcher.server",
+    "launcher.web",
+    "launcher.mobile",
+    "backend.app.main",
+    "uvicorn",
+    "fastapi",
+] + src_hiddenimports + launcher_hiddenimports + backend_hiddenimports
 
 binaries = []
 datas = [
     (str(project_root / "assets"), "assets"),
+    (str(project_root / "launcher" / "hub_theme.qss"), "launcher"),
+    (str(project_root / "backend"), "backend"),
     (str(project_root / ".env.example"), "."),
 ]
 
