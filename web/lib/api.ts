@@ -3,7 +3,6 @@ function resolveApiBase(): string {
   if (configured) {
     return configured.replace(/\/$/, "");
   }
-  // Requêtes relatives → proxy Next.js (next.config.ts) vers le backend local.
   return "";
 }
 
@@ -70,14 +69,62 @@ export type QuickReply = {
   translated_text: string;
 };
 
-export type SettingsResponse = {
+export type Settings = {
   language: string;
   translator: string;
   bidirectional_mode: boolean;
+  auto_detect_language: boolean;
+  default_reply_language: string;
+  capture_fps: number;
+  chat_monitor_enabled: boolean;
+  voice_input_enabled: boolean;
+  speak_translation: boolean;
+  preferred_launch_game: string;
+  ocr_languages: string;
+  deepl_api_key_set: boolean;
 };
 
+export type SettingsUpdate = Partial<
+  Omit<Settings, "deepl_api_key_set"> & { deepl_api_key: string }
+>;
+
+export type GameStatus = {
+  running: boolean;
+  summary: string;
+  games: { key: string; title: string; short_title: string }[];
+};
+
+export type Stats = {
+  message_count: number;
+  recent_count: number;
+  translator: string;
+  language: string;
+};
+
+export type LogsPayload = {
+  lines: string[];
+  path: string;
+};
+
+export const LANGUAGES = [
+  { value: "fr", label: "Français" },
+  { value: "en", label: "English" },
+  { value: "de", label: "Deutsch" },
+  { value: "es", label: "Español" },
+  { value: "it", label: "Italiano" },
+  { value: "pt", label: "Português" },
+  { value: "ru", label: "Русский" },
+  { value: "pl", label: "Polski" },
+];
+
+export const GAMES = [
+  { value: "d4", label: "Diablo IV" },
+  { value: "d3", label: "Diablo III" },
+  { value: "immortal", label: "Diablo Immortal" },
+];
+
 export const api = {
-  health: () => request<{ status: string }>("/api/v1/health"),
+  health: () => request<{ status: string; version?: string }>("/api/v1/health"),
   messages: async (limit = 50) => {
     const payload = await request<unknown>(`/api/v1/messages?limit=${limit}`);
     return asArray<MessageItem>(payload);
@@ -96,7 +143,15 @@ export const api = {
     const payload = await request<unknown>("/api/v1/reply/quick");
     return asArray<QuickReply>(payload);
   },
-  settings: () => request<SettingsResponse>("/api/v1/settings"),
+  settings: () => request<Settings>("/api/v1/settings"),
+  updateSettings: (payload: SettingsUpdate) =>
+    request<Settings>("/api/v1/settings", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  gameStatus: () => request<GameStatus>("/api/v1/game/status"),
+  stats: () => request<Stats>("/api/v1/stats"),
+  logs: (lines = 80) => request<LogsPayload>(`/api/v1/logs?lines=${lines}`),
 };
 
 export { API_BASE };

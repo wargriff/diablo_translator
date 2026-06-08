@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { PageHeader } from "@/components/page-header";
 import { api, type MessageItem } from "@/lib/api";
 
 export default function LivePage() {
@@ -27,40 +29,55 @@ export default function LivePage() {
     return () => clearInterval(timer);
   }, []);
 
-  if (loading && messages.length === 0) {
-    return <p className="text-diablo-muted">Chargement…</p>;
-  }
-
-  if (error) {
-    return (
-      <div className="card max-w-xl">
-        <p className="text-red-400">{error}</p>
-        <p className="mt-2 text-sm text-diablo-muted">
-          Lancez l&apos;API : <code>py -3 launcher.py server</code>
-        </p>
-        <button className="btn-primary mt-4" onClick={() => void load()}>
-          Réessayer
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div>
-      <h2 className="mb-4 text-xl font-semibold">Live Chat</h2>
-      <div className="space-y-3">
-        {messages.length === 0 ? (
-          <p className="text-diablo-muted">Aucun message pour le moment.</p>
-        ) : (
-          messages.map((msg) => (
-            <article key={msg.id} className="card">
-              <p className="text-xs uppercase text-diablo-gold">{msg.source_language ?? "?"}</p>
-              <p className="mt-1 text-sm text-diablo-muted">{msg.source_text}</p>
-              <p className="mt-2">{msg.translated_text}</p>
-            </article>
-          ))
-        )}
-      </div>
+      <PageHeader
+        title="Live Chat"
+        subtitle="Flux des traductions OCR en temps réel"
+        action={
+          <button className="btn-ghost" onClick={() => void load()}>
+            Actualiser
+          </button>
+        }
+      />
+
+      {loading && messages.length === 0 ? (
+        <p className="text-diablo-muted">Invocation du flux…</p>
+      ) : error ? (
+        <div className="card max-w-xl border-red-900/40">
+          <p className="text-red-400">{error}</p>
+          <p className="mt-2 text-sm text-diablo-muted">
+            <Link href="/" className="text-diablo-gold hover:underline">
+              Retour au Sanctuaire
+            </Link>{" "}
+            ou lancez <code>py -3 launcher.py server</code>
+          </p>
+          <button className="btn-primary mt-4" onClick={() => void load()}>
+            Réessayer
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {messages.length === 0 ? (
+            <div className="card text-center text-diablo-muted">
+              <p>Aucun message — traduisez depuis Reply ou lancez le desktop OCR.</p>
+              <Link href="/reply" className="btn-gold mt-4 inline-flex">
+                Composer une réponse
+              </Link>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <article key={msg.id} className="card border-l-2 border-l-diablo-accentBright">
+                <p className="text-[10px] uppercase tracking-widest text-diablo-gold">
+                  {msg.source_language ?? "?"} → {msg.target_language ?? "?"}
+                </p>
+                <p className="mt-2 text-sm text-diablo-muted">{msg.source_text}</p>
+                <p className="mt-2 font-medium text-gray-100">{msg.translated_text}</p>
+              </article>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

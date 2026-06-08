@@ -1,36 +1,69 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { PageHeader } from "@/components/page-header";
+import { api, type GameStatus, type Stats } from "@/lib/api";
 
 export default function StatisticsPage() {
-  const [count, setCount] = useState(0);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [game, setGame] = useState<GameStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void api
-      .messages(200)
-      .then((messages) => setCount(messages.length))
-      .catch((err) => setError(err instanceof Error ? err.message : "Erreur API"))
-      .finally(() => setLoading(false));
+    void Promise.all([api.stats(), api.gameStatus()])
+      .then(([s, g]) => {
+        setStats(s);
+        setGame(g);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur API"));
   }, []);
 
   return (
-    <div className="max-w-xl">
-      <h2 className="mb-4 text-xl font-semibold">Statistics</h2>
-      <div className="card">
-        {loading ? (
-          <p className="text-diablo-muted">Chargement…</p>
-        ) : error ? (
-          <p className="text-red-400">{error}</p>
-        ) : (
-          <>
-            <p className="text-3xl font-bold text-diablo-gold">{count}</p>
-            <p className="text-diablo-muted">messages récents en historique</p>
-          </>
-        )}
-      </div>
+    <div className="max-w-3xl">
+      <PageHeader title="Statistiques" subtitle="Métriques du Sanctuaire" />
+
+      {error ? (
+        <p className="text-red-400">{error}</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard label="Messages total" value={stats?.message_count ?? "—"} accent />
+          <StatCard label="Messages récents" value={stats?.recent_count ?? "—"} />
+          <StatCard label="Traducteur" value={stats?.translator ?? "—"} />
+          <StatCard label="Langue" value={stats?.language ?? "—"} />
+          <StatCard
+            label="Jeu détecté"
+            value={game?.running ? game.games.map((g) => g.short_title).join(", ") : "Aucun"}
+            wide
+          />
+        </div>
+      )}
+
+      {game ? (
+        <p className="mt-6 text-sm text-diablo-muted">{game.summary}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  accent,
+  wide,
+}: {
+  label: string;
+  value: string | number;
+  accent?: boolean;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className={`card text-center ${accent ? "border-diablo-gold/50 shadow-d4-gold" : ""} ${wide ? "sm:col-span-2 lg:col-span-1" : ""}`}
+    >
+      <p className="d4-subtitle">{label}</p>
+      <p className={`mt-2 font-cinzel text-3xl ${accent ? "text-diablo-gold" : "text-gray-100"}`}>
+        {value}
+      </p>
     </div>
   );
 }

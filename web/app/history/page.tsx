@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { api, type MessageItem } from "@/lib/api";
 
 export default function HistoryPage() {
@@ -25,31 +26,35 @@ export default function HistoryPage() {
     void load();
   }, []);
 
-  if (loading) {
-    return <p className="text-diablo-muted">Chargement…</p>;
-  }
-
   return (
     <div>
-      <h2 className="mb-4 text-xl font-semibold">History</h2>
-      {error ? (
-        <div className="card max-w-xl">
+      <PageHeader
+        title="History"
+        subtitle="Chroniques des traductions passées"
+        action={
+          <button className="btn-ghost" onClick={() => void load()}>
+            Actualiser
+          </button>
+        }
+      />
+
+      {loading ? (
+        <p className="text-diablo-muted">Chargement…</p>
+      ) : error ? (
+        <div className="card">
           <p className="text-red-400">{error}</p>
-          <p className="mt-2 text-sm text-diablo-muted">
-            Lancez l&apos;API : <code>py -3 launcher.py server</code>
-          </p>
           <button className="btn-primary mt-4" onClick={() => void load()}>
             Réessayer
           </button>
         </div>
       ) : messages.length === 0 ? (
-        <p className="text-diablo-muted">Aucun message en historique.</p>
+        <p className="text-diablo-muted">Aucune chronique enregistrée.</p>
       ) : (
         <div className="space-y-3">
           {messages.map((msg) => (
             <article key={msg.id} className="card">
-              <p className="text-xs text-diablo-muted">{msg.created_at}</p>
-              <p className="mt-1">{msg.source_text}</p>
+              <p className="text-[10px] text-diablo-muted">{msg.created_at}</p>
+              <p className="mt-2">{msg.source_text}</p>
               <p className="mt-1 text-diablo-gold">{msg.translated_text}</p>
             </article>
           ))}

@@ -7,25 +7,92 @@
 }
 
 body {
-  @apply bg-diablo-bg text-gray-100 antialiased;
+  @apply bg-diablo-bg font-body text-gray-100 antialiased;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9a227' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.d4-frame {
+  @apply relative rounded-sm border border-diablo-borderGold/60 bg-d4-panel shadow-d4;
+}
+
+.d4-frame::before {
+  content: "";
+  @apply pointer-events-none absolute inset-0 rounded-sm;
+  background: linear-gradient(
+    135deg,
+    rgba(201, 162, 39, 0.15) 0%,
+    transparent 30%,
+    transparent 70%,
+    rgba(139, 0, 0, 0.12) 100%
+  );
+}
+
+.d4-title {
+  @apply font-cinzel text-xl tracking-[0.2em] uppercase text-diablo-gold;
+  text-shadow: 0 0 20px rgba(201, 162, 39, 0.35);
+}
+
+.d4-subtitle {
+  @apply text-xs uppercase tracking-widest text-diablo-muted;
 }
 
 .card {
-  @apply rounded-xl border border-diablo-border bg-diablo-panel p-4 shadow-lg;
+  @apply d4-frame p-5;
 }
 
 .btn {
-  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition;
+  @apply inline-flex items-center justify-center gap-2 rounded-sm px-5 py-2.5 text-sm font-medium uppercase tracking-wider transition duration-200;
 }
 
 .btn-primary {
-  @apply btn bg-diablo-accent text-white hover:bg-red-700;
+  @apply btn border border-diablo-gold/50 bg-gradient-to-b from-diablo-accentBright to-diablo-accent text-white shadow-d4-gold hover:brightness-110;
+}
+
+.btn-primary-lg {
+  @apply btn-primary px-10 py-4 text-base animate-pulse-gold;
 }
 
 .btn-ghost {
-  @apply btn border border-diablo-border bg-transparent hover:bg-white/5;
+  @apply btn border border-diablo-border bg-diablo-ash/50 text-diablo-gold hover:border-diablo-gold/60 hover:bg-diablo-panelLight;
 }
 
-.input {
-  @apply w-full rounded-lg border border-diablo-border bg-black/30 px-3 py-2 text-sm outline-none focus:border-diablo-accent;
+.btn-gold {
+  @apply btn border border-diablo-gold bg-diablo-goldDim/20 text-diablo-gold hover:bg-diablo-goldDim/40;
+}
+
+.input,
+.select {
+  @apply w-full rounded-sm border border-diablo-border bg-black/40 px-3 py-2.5 text-sm text-gray-100 outline-none transition focus:border-diablo-gold/70 focus:ring-1 focus:ring-diablo-gold/30;
+}
+
+.label {
+  @apply mb-1.5 block text-xs uppercase tracking-wider text-diablo-goldDim;
+}
+
+.nav-link {
+  @apply relative flex items-center gap-2 rounded-sm border border-transparent px-3 py-2.5 text-sm uppercase tracking-wide text-diablo-muted transition;
+}
+
+.nav-link:hover {
+  @apply border-diablo-border/80 bg-diablo-ash/60 text-diablo-gold;
+}
+
+.nav-link-active {
+  @apply border-diablo-gold/40 bg-gradient-to-r from-diablo-accent/30 to-transparent text-diablo-gold shadow-d4;
+}
+
+.status-dot {
+  @apply h-2 w-2 rounded-full;
+}
+
+.status-online {
+  @apply bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)];
+}
+
+.status-offline {
+  @apply bg-red-700 shadow-[0_0_8px_rgba(185,28,28,0.6)];
+}
+
+.ember-glow {
+  @apply animate-ember text-diablo-ember;
 }
