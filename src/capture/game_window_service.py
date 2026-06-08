@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from src.capture.display_service import DisplayService, ScreenRect
 from src.game_detection.game_detection_service import GameDetectionService, GameDetectionStatus
 
+GWL_EXSTYLE = -20
+WS_EX_TOOLWINDOW = 0x00000080
+MIN_CLIENT_AREA = 50_000
+PREFERRED_CLIENT_AREA = 200_000
+
 
 @dataclass(frozen=True, slots=True)
 class GameWindowInfo:
@@ -64,6 +69,36 @@ class GameWindowService:
         if not target_pids:
             return None
 
+        matches = cls._collect_window_matches(target_pids)
+        if not matches:
+            return None
+
+        preferred = [item for item in matches if item[0] >= PREFERRED_CLIENT_AREA]
+        pool = preferred or matches
+        pool.sort(key=lambda item: item[0], reverse=True)
+        _, title, hwnd, client_rect, window_rect = pool[0]
+        monitor = DisplayService.monitor_for_rect(window_rect)
+        is_fullscreen, display_mode = DisplayService.detect_display_mode(
+            window_rect,
+            monitor,
+        )
+
+        return GameWindowInfo(
+            hwnd=hwnd,
+            client=client_rect,
+            window=window_rect,
+            process_name=process_name,
+            window_title=title,
+            monitor_index=monitor.index,
+            is_fullscreen=is_fullscreen,
+            display_mode=display_mode,
+        )
+
+    @classmethod
+    def _collect_window_matches(
+        cls,
+        target_pids: set[int],
+    ) -> list[tuple[int, str, int, ScreenRect, ScreenRect]]:
         user32 = ctypes.windll.user32
         matches: list[tuple[int, str, int, ScreenRect, ScreenRect]] = []
 
@@ -71,7 +106,11 @@ class GameWindowService:
             if not user32.IsWindowVisible(hwnd):
                 return True
 
-            if user32.GetWindow(hwnd, 4):
+            if user32.IsIconic(hwnd):
+                return True
+
+            ex_style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+            if ex_style & WS_EX_TOOLWINDOW:
                 return True
 
             pid = wintypes.DWORD()
@@ -89,7 +128,7 @@ class GameWindowService:
             client = wintypes.RECT()
             user32.GetClientRect(hwnd, ctypes.byref(client))
             area = client.right * client.bottom
-            if area < 200_000:
+            if area < MIN_CLIENT_AREA:
                 return True
 
             origin = wintypes.POINT(0, 0)
@@ -115,25 +154,4 @@ class GameWindowService:
 
         enum_proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
         user32.EnumWindows(enum_proc(enum_callback), 0)
-
-        if not matches:
-            return None
-
-        matches.sort(key=lambda item: item[0], reverse=True)
-        _, title, hwnd, client_rect, window_rect = matches[0]
-        monitor = DisplayService.monitor_for_rect(window_rect)
-        is_fullscreen, display_mode = DisplayService.detect_display_mode(
-            window_rect,
-            monitor,
-        )
-
-        return GameWindowInfo(
-            hwnd=hwnd,
-            client=client_rect,
-            window=window_rect,
-            process_name=process_name,
-            window_title=title,
-            monitor_index=monitor.index,
-            is_fullscreen=is_fullscreen,
-            display_mode=display_mode,
-        )
+        return matches

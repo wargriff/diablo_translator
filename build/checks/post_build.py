@@ -38,6 +38,15 @@ def _check_frozen_verify(dist_exe: Path, dist_dir: Path) -> CheckResult:
         )
     except subprocess.TimeoutExpired:
         return CheckResult("Verification frozen", False, "Timeout 180s")
+    except OSError as exc:
+        winerror = getattr(exc, "winerror", None)
+        if winerror == 4551:
+            return CheckResult(
+                "Verification frozen",
+                False,
+                "Smart App Control a bloque l exe — relancez build\\Lancer.bat ou debloquez l exe",
+            )
+        return CheckResult("Verification frozen", False, str(exc))
 
     detail = (proc.stdout or proc.stderr or "").strip()[-400:]
     return CheckResult(

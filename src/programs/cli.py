@@ -8,6 +8,10 @@ def run_build_verify() -> int:
     """Smoke test pour build PyInstaller (exit 0 = OK)."""
     modules = (
         "PyQt6.QtWidgets",
+        "dependency_injector",
+        "dependency_injector.errors",
+        "dependency_injector.providers",
+        "dependency_injector.containers",
         "cv2",
         "easyocr",
         "torch",
@@ -16,6 +20,7 @@ def run_build_verify() -> int:
         "langdetect",
         "deep_translator",
         "src.infrastructure.container",
+        "src.infrastructure.application_container",
         "src.application.live_chat_service",
         "src.capture.capture_region_resolver",
     )

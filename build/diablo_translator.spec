@@ -13,11 +13,17 @@ manifest_path = build_dir / "app.manifest"
 runtime_hook = str(build_dir / "runtime_hooks" / "pyi_rth_win_dll.py")
 
 src_hiddenimports = collect_submodules("src")
+di_hiddenimports = collect_submodules("dependency_injector")
 
 hiddenimports = [
     "PyQt6",
     "dependency_injector",
+    "dependency_injector.errors",
     "dependency_injector.providers",
+    "dependency_injector.containers",
+    "dependency_injector.wiring",
+    "dependency_injector.resources",
+    "dependency_injector._cwiring",
     "PyQt6.QtCore",
     "PyQt6.QtGui",
     "PyQt6.QtWidgets",
@@ -50,9 +56,15 @@ hiddenimports = [
     "src.infrastructure.container",
     "src.bootstrap.app",
     "src.programs.cli",
-] + src_hiddenimports
+] + di_hiddenimports + src_hiddenimports
 
 binaries = []
+for package in ("dependency_injector",):
+    try:
+        binaries += collect_dynamic_libs(package)
+    except Exception:
+        pass
+
 datas = [
     (str(project_root / "assets"), "assets"),
     (str(project_root / ".env.example"), "."),

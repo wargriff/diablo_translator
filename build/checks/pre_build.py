@@ -27,6 +27,8 @@ REQUIRED_IMPORTS: tuple[tuple[str, str], ...] = (
     ("langdetect", "langdetect"),
     ("deep_translator", "deep-translator"),
     ("pyperclip", "pyperclip"),
+    ("dependency_injector", "dependency-injector"),
+    ("dependency_injector.errors", "dependency-injector"),
 )
 
 REQUIRED_SOURCE_MODULES: tuple[str, ...] = (
@@ -38,6 +40,7 @@ REQUIRED_SOURCE_MODULES: tuple[str, ...] = (
     "src.application.in_game_chat_router",
     "src.capture.capture_region_resolver",
     "src.infrastructure.container",
+    "src.infrastructure.application_container",
     "src.bootstrap.app",
     "src.programs.cli",
 )

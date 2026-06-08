@@ -292,11 +292,11 @@ def main(argv: list[str] | None = None) -> int:
         print("\nPyInstaller a echoue.")
         return 1
 
-    if _run_post_build(verify_runtime=verify_runtime) != 0:
-        return 1
-
     if run_security and _run_windows_security() != 0:
         print("\nAttention : etape securite Windows incomplete.")
+
+    if _run_post_build(verify_runtime=verify_runtime) != 0:
+        return 1
 
     if create_shortcut:
         _create_shortcut()

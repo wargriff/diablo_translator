@@ -11,6 +11,7 @@ from src.game_detection.game_detection_service import GameDetectionService
 class GameSessionService:
 
     TTL_SECONDS = 0.75
+    WAITING_WINDOW_TTL_SECONDS = 0.25
 
     def __init__(
         self,
@@ -23,10 +24,19 @@ class GameSessionService:
 
     def snapshot(self, *, force: bool = False) -> GameSessionSnapshot:
         now = time.time()
+        ttl = self.TTL_SECONDS
         if (
             not force
             and self._cached is not None
-            and now - self._cached.scanned_at < self.TTL_SECONDS
+            and self._cached.status.is_any_running
+            and self._cached.window is None
+        ):
+            ttl = self.WAITING_WINDOW_TTL_SECONDS
+
+        if (
+            not force
+            and self._cached is not None
+            and now - self._cached.scanned_at < ttl
         ):
             return self._cached
 

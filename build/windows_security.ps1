@@ -49,5 +49,8 @@ Write-Host "  - Build local = pas de telechargement Internet (MOTW retire)."
 Write-Host "  - Si Windows bloque encore : clic droit exe > Proprietes > Debloquer."
 Write-Host "  - Signature code (certificat) = seule vraie whitelist Smart App Control."
 Write-Host "  - Exclusion Defender (admin) : Parametres > Virus > Exclusions > dossier build\dist"
+Write-Host "  - Smart App Control : Parametres > Confidentialite > Securite Windows > Controle applications"
+Write-Host "    > Desactiver le controle ou ajouter une exclusion pour ce dossier de build local."
+Write-Host "  - Toujours preferer : build\\Lancer.bat (debloque MOTW puis lance l exe)."
 Write-Host ""
 exit 0
