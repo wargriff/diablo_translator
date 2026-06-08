@@ -34,3 +34,8 @@ if getattr(sys, "frozen", False):
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
         _register_dll_directories(meipass)
+
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")

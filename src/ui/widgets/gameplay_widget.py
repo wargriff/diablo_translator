@@ -52,7 +52,7 @@ class GameplayWidget(QWidget):
         self.chat_input.setObjectName("ChatInputLine")
         self.chat_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.chat_input.setPlaceholderText(
-            "Cliquez ici — traduction affichée dans l'overlay (Ctrl+C pour copier)"
+            "Tapez ici puis Entrée — envoi auto dans le chat Diablo"
         )
         self.chat_input.installEventFilter(self)
 
@@ -214,12 +214,12 @@ class GameplayWidget(QWidget):
 
         if compact and not hide_input:
             self.chat_input.setPlaceholderText(
-                "Cliquez ici — traduction dans l'overlay (bouton Copier → Diablo)"
+                "Tapez + Entrée → traduit et envoie dans Diablo"
             )
             self.translate_button.setText(" →")
         elif not hide_input:
             self.chat_input.setPlaceholderText(
-                "Saisie manuelle (Entrée) — ne va pas dans Diablo automatiquement"
+                "Saisie manuelle — Entrée envoie dans le chat Diablo"
             )
             self.translate_button.setText(" Traduire")
 
@@ -283,15 +283,37 @@ class GameplayWidget(QWidget):
         if not text:
             return
 
+        original_text = text
         self.chat_input.clear()
 
         try:
-            result = self.controller.translate_user_message(text)
+            result = self.controller.translate_user_message(original_text)
         except Exception as exc:
             self._append_chat_line("Erreur", str(exc), "#c0392b")
             return
 
         self.display_translation_result(result, speaker="Vous", manual_input=True)
+
+        if result.skipped and not result.preserved_mixed:
+            text_to_send = original_text
+        else:
+            text_to_send = result.translated_text.strip()
+
+        if text_to_send and self.controller.app_config.auto_send_to_game:
+            overlay_hwnd = int(self.window().winId()) if self.window() else None
+            ok, error = self.controller.send_to_game_chat(
+                text_to_send,
+                restore_hwnd=overlay_hwnd,
+            )
+            if ok:
+                self._append_chat_line(
+                    "Info",
+                    "Message envoyé dans le chat Diablo.",
+                    "#7cb342",
+                )
+            else:
+                self._append_chat_line("Erreur", error, "#c0392b")
+
         self._notify_status_update()
 
     def copy_last_outgoing_translation(self) -> None:
@@ -416,8 +438,9 @@ class GameplayWidget(QWidget):
                 self._copy_to_clipboard(result.translated_text)
             self._last_outgoing_translation = result.translated_text
             self.last_translation_label.setText(
-                f"À coller en {target_label} : {result.translated_text}"
-                + (" (bouton Copier)" if manual_input else "")
+                f"Envoyé en {target_label} : {result.translated_text}"
+                if manual_input and self.controller.app_config.auto_send_to_game
+                else f"À coller en {target_label} : {result.translated_text}"
             )
             self._refresh_provider_label()
             return

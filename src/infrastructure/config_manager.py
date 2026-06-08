@@ -42,6 +42,8 @@ class AppConfig:
     player_name: str = ""
     auto_detect_player: bool = True
     auto_copy_outgoing: bool = True
+    auto_send_to_game: bool = True
+    startup_delay_seconds: int = 3
     low_cpu_mode: bool = True
     auto_detect_language: bool = True
     bidirectional_mode: bool = True
@@ -124,6 +126,12 @@ class ConfigManager:
             if config.overlay_height < 260:
                 config.overlay_height = 280
             version = 7
+            migrated = True
+
+        if version < 8:
+            config.auto_send_to_game = True
+            config.startup_delay_seconds = 3
+            version = 8
             migrated = True
 
         if migrated:

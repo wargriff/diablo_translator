@@ -43,6 +43,7 @@ class MainWindow(QMainWindow):
         self._size_grip: QSizeGrip | None = None
         self._toolbar: QToolBar | None = None
         self._geometry_dirty = False
+        self._background_services_enabled = False
 
         apply_theme(self)
         self.setWindowTitle("Diablo Translator")
@@ -230,7 +231,20 @@ class MainWindow(QMainWindow):
         chat_input = self.gameplay_widget.chat_input
         return focused is chat_input or chat_input.isAncestorOf(focused)
 
+    def enable_background_services(self) -> None:
+        self._background_services_enabled = True
+        if (
+            self.container.config.auto_start_monitor
+            and self.container.config.chat_monitor_enabled
+            and self.container.game_detection.is_running()
+            and not self.container.worker.is_running
+        ):
+            self.gameplay_widget.start_worker(auto=True)
+
     def _on_game_timer(self) -> None:
+        if not self._background_services_enabled:
+            return
+
         status = self.container.game_detection.scan()
         if not status.is_any_running:
             return

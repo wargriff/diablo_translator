@@ -178,6 +178,8 @@ class SettingsDialog(QDialog):
         form.addRow("Détection automatique des langues", self.auto_detect_language)
         form.addRow("Conserver le mixte FR/EN (vos messages)", self.preserve_mixed_language)
         form.addRow("Copier auto vos traductions", self.auto_copy_outgoing)
+        form.addRow("Envoyer auto dans le chat Diablo", self.auto_send_to_game)
+        form.addRow("Délai démarrage OCR (sec)", self.startup_delay_seconds)
         widget = QWidget()
         widget.setLayout(form)
         return widget
@@ -243,6 +245,9 @@ class SettingsDialog(QDialog):
         self.auto_detect_language = QCheckBox()
         self.preserve_mixed_language = QCheckBox()
         self.auto_copy_outgoing = QCheckBox()
+        self.auto_send_to_game = QCheckBox()
+        self.startup_delay_seconds = QSpinBox()
+        self.startup_delay_seconds.setRange(1, 15)
 
         self.overlay_compact = QCheckBox()
         self.ingame_only_mode = QCheckBox()
@@ -299,6 +304,8 @@ class SettingsDialog(QDialog):
         self.auto_detect_language.setChecked(config.auto_detect_language)
         self.preserve_mixed_language.setChecked(config.preserve_mixed_language)
         self.auto_copy_outgoing.setChecked(config.auto_copy_outgoing)
+        self.auto_send_to_game.setChecked(config.auto_send_to_game)
+        self.startup_delay_seconds.setValue(config.startup_delay_seconds)
         self.overlay_compact.setChecked(config.overlay_compact)
         self.ingame_only_mode.setChecked(config.ingame_only_mode)
         self.overlay_native_frame.setChecked(not config.overlay_borderless)
@@ -369,6 +376,8 @@ class SettingsDialog(QDialog):
             player_name=self.player_name.text().strip(),
             auto_detect_player=self.auto_detect_player.isChecked(),
             auto_copy_outgoing=self.auto_copy_outgoing.isChecked(),
+            auto_send_to_game=self.auto_send_to_game.isChecked(),
+            startup_delay_seconds=self.startup_delay_seconds.value(),
             low_cpu_mode=self.low_cpu_mode.isChecked(),
             auto_detect_language=self.auto_detect_language.isChecked(),
             bidirectional_mode=self.bidirectional_mode.isChecked(),

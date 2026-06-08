@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.application.config_service import ConfigService
+from src.automation.game_chat_input_service import GameChatInputService
 from src.application.live_chat_service import LiveChatService
 from src.domain.models.translation_result import TranslationResult
 from src.game_detection.game_detection_service import GameDetectionService
@@ -43,6 +43,18 @@ class GameplayController:
 
     def translate_user_message(self, text: str) -> TranslationResult:
         return self.live_chat.translate_user_text(text)
+
+    def send_to_game_chat(self, text: str, *, restore_hwnd: int | None = None) -> tuple[bool, str]:
+        config = self.app_config
+        if not config.auto_send_to_game:
+            return False, "Envoi auto désactivé dans les paramètres."
+
+        return GameChatInputService.send_message(
+            self.game_detection,
+            text,
+            send_enter=True,
+            restore_hwnd=restore_hwnd,
+        )
 
     def start_monitoring(self, *, auto: bool = False) -> str | None:
         status = self.game_detection.scan()
