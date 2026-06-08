@@ -6,7 +6,7 @@ __pycache__/
 venv/
 user_data/exports/
 user_data/*.db
-logs/
+/logs/
 cache/translations/*.json
 cache/ocr/*
 models/*

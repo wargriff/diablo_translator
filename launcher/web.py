@@ -27,6 +27,23 @@ def _find_npm() -> str | None:
     return None
 
 
+def _web_env(port: int) -> dict[str, str]:
+    env = {**os.environ, "PORT": str(port)}
+    if sys.platform != "win32":
+        return env
+    node_dirs: list[str] = []
+    for candidate in (
+        Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "nodejs",
+        Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "nodejs",
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "node",
+    ):
+        if candidate.exists():
+            node_dirs.append(str(candidate))
+    if node_dirs:
+        env["PATH"] = os.pathsep.join(node_dirs + [env.get("PATH", "")])
+    return env
+
+
 def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True) -> int:
     if not WEB_DIR.exists():
         print(f"Dossier web introuvable : {WEB_DIR}")
@@ -52,7 +69,7 @@ def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True) -> 
 
     print(f"Web companion : http://127.0.0.1:{port}")
     print("Arret : Ctrl+C")
-    env = {**os.environ, "PORT": str(port)}
+    env = _web_env(port)
     command = [npm, "run", "dev", "--", "-p", str(port)]
 
     try:
