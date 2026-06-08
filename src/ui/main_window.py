@@ -30,6 +30,7 @@ class MainWindow(QMainWindow):
 
     translation_received = pyqtSignal(object)
     voice_received = pyqtSignal(object)
+    ocr_status_received = pyqtSignal(object)
 
     def __init__(self, container: Container) -> None:
         super().__init__()
@@ -58,7 +59,8 @@ class MainWindow(QMainWindow):
         self.container.set_translation_listener(
             self.translation_received.emit
         )
-        self.container.set_status_listener(self.on_ocr_status)
+        self.ocr_status_received.connect(self.on_ocr_status)
+        self.container.set_status_listener(self.ocr_status_received.emit)
         self.container.set_voice_listener(
             self.voice_received.emit
         )
@@ -233,13 +235,29 @@ class MainWindow(QMainWindow):
 
     def enable_background_services(self) -> None:
         self._background_services_enabled = True
-        if (
-            self.container.config.auto_start_monitor
-            and self.container.config.chat_monitor_enabled
-            and self.container.game_detection.is_running()
-            and not self.container.worker.is_running
-        ):
-            self.gameplay_widget.start_worker(auto=True)
+        self._try_auto_start_monitor()
+
+    def _try_auto_start_monitor(self) -> None:
+        if not self._background_services_enabled:
+            return
+
+        if not self.container.config.auto_start_monitor:
+            return
+        if not self.container.config.chat_monitor_enabled:
+            return
+        if self.container.worker.is_running:
+            return
+
+        status = self.container.game_detection.scan()
+        if not status.is_any_running:
+            return
+
+        hint = self.container.live_chat.game_readiness_hint()
+        if hint:
+            self.gameplay_widget.update_wait_hint(hint)
+            return
+
+        self.gameplay_widget.start_worker(auto=True)
 
     def _on_game_timer(self) -> None:
         if not self._background_services_enabled:
@@ -249,12 +267,7 @@ class MainWindow(QMainWindow):
         if not status.is_any_running:
             return
 
-        if (
-            self.container.config.auto_start_monitor
-            and not self.container.worker.is_running
-            and self.container.config.chat_monitor_enabled
-        ):
-            self.gameplay_widget.start_worker(auto=True)
+        self._try_auto_start_monitor()
 
     def _build_header(self) -> QWidget:
         title = QLabel("DIABLO TRANSLATOR")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import time
 
 from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
@@ -59,6 +60,7 @@ class GameplayWidget(QWidget):
         self._voice_busy = False
         self._shortcuts: list[QShortcut] = []
         self._last_ocr_status_message = ""
+        self._ocr_started_at: float | None = None
 
         self.translate_button = QPushButton(" Traduire")
         self.translate_button.setObjectName("PrimaryButton")
@@ -372,11 +374,15 @@ class GameplayWidget(QWidget):
             self._append_system_message(error)
             return
 
+        self._ocr_started_at = time.time()
         status = self.controller.scan_games()
         self.auto_status_label.setText(
             f"Surveillance chat : active ({status.summary()})"
         )
-        if not auto:
+        hint = self.controller.live_chat.game_readiness_hint()
+        if hint:
+            self.update_wait_hint(hint)
+        elif not auto:
             self._append_system_message(
                 f"Surveillance OCR démarrée — {status.summary()}"
             )
@@ -479,7 +485,23 @@ class GameplayWidget(QWidget):
         speaker = "Vous (Diablo)" if result.outgoing else "Chat jeu"
         self.display_translation_result(result, speaker=speaker)
 
+    def update_wait_hint(self, hint: str) -> None:
+        if not hint:
+            return
+        if not self.controller.app_config.overlay_compact:
+            self.auto_status_label.setText(hint)
+            return
+        message = f"OCR : {hint}"
+        if message == self._last_ocr_status_message:
+            return
+        self._last_ocr_status_message = message
+        self._append_overlay_status(message, error=False)
+
     def update_ocr_status(self, status) -> None:
+        if status.wait_hint:
+            self.update_wait_hint(status.wait_hint)
+            return
+
         if not self.worker.is_running:
             return
 
@@ -507,11 +529,19 @@ class GameplayWidget(QWidget):
         if status.new_message_count:
             return
 
+        warming_up = False
         if status.ocr_line_count == 0:
-            message = (
-                "OCR : aucun texte lu — preset 1080p, fermez Contacts, "
-                "1 seule instance ouverte"
+            warming_up = (
+                self._ocr_started_at is not None
+                and time.time() - self._ocr_started_at < 25
             )
+            if warming_up:
+                message = "OCR : chargement modèles — patientez…"
+            else:
+                message = (
+                    "OCR : aucun texte lu — entrez en jeu, preset 1080p, "
+                    "fermez Contacts"
+                )
         else:
             message = (
                 f"OCR actif ({status.ocr_line_count} lignes, preset {status.preset_key})"
@@ -520,7 +550,7 @@ class GameplayWidget(QWidget):
         if message == self._last_ocr_status_message:
             return
         self._last_ocr_status_message = message
-        self._append_overlay_status(message, error=status.ocr_line_count == 0)
+        self._append_overlay_status(message, error=status.ocr_line_count == 0 and not warming_up)
 
     def handle_voice_result(self, payload) -> None:
         if isinstance(payload, str) and payload.startswith("__ERROR__:"):

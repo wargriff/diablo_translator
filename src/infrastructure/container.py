@@ -1,4 +1,5 @@
 from src.analytics.analytics_service import AnalyticsService
+from src.application.game_readiness_service import GameReadinessService
 from src.application.config_service import ConfigService
 from src.application.game_session_service import GameSessionService
 from src.application.live_chat_service import LiveChatService
@@ -25,6 +26,7 @@ class Container:
 
         self.config_service = ConfigService()
         self.conversation = ConversationContext()
+        self.game_readiness = GameReadinessService()
         self.capture = CaptureService()
         self.pipeline = TranslationPipeline(self.config_service.config, self.conversation)
         self.cache = self.pipeline.cache
@@ -41,6 +43,7 @@ class Container:
             self.game_detection,
             self.pipeline,
             self.config_service,
+            game_readiness=self.game_readiness,
         )
         self.worker = TranslationWorker(
             self.live_chat,

@@ -180,6 +180,7 @@ class SettingsDialog(QDialog):
         form.addRow("Copier auto vos traductions", self.auto_copy_outgoing)
         form.addRow("Envoyer auto dans le chat Diablo", self.auto_send_to_game)
         form.addRow("Délai démarrage OCR (sec)", self.startup_delay_seconds)
+        form.addRow("Attente lancement Diablo (sec)", self.game_startup_grace_seconds)
         widget = QWidget()
         widget.setLayout(form)
         return widget
@@ -248,6 +249,8 @@ class SettingsDialog(QDialog):
         self.auto_send_to_game = QCheckBox()
         self.startup_delay_seconds = QSpinBox()
         self.startup_delay_seconds.setRange(1, 15)
+        self.game_startup_grace_seconds = QSpinBox()
+        self.game_startup_grace_seconds.setRange(5, 60)
 
         self.overlay_compact = QCheckBox()
         self.ingame_only_mode = QCheckBox()
@@ -306,6 +309,7 @@ class SettingsDialog(QDialog):
         self.auto_copy_outgoing.setChecked(config.auto_copy_outgoing)
         self.auto_send_to_game.setChecked(config.auto_send_to_game)
         self.startup_delay_seconds.setValue(config.startup_delay_seconds)
+        self.game_startup_grace_seconds.setValue(config.game_startup_grace_seconds)
         self.overlay_compact.setChecked(config.overlay_compact)
         self.ingame_only_mode.setChecked(config.ingame_only_mode)
         self.overlay_native_frame.setChecked(not config.overlay_borderless)
@@ -378,6 +382,7 @@ class SettingsDialog(QDialog):
             auto_copy_outgoing=self.auto_copy_outgoing.isChecked(),
             auto_send_to_game=self.auto_send_to_game.isChecked(),
             startup_delay_seconds=self.startup_delay_seconds.value(),
+            game_startup_grace_seconds=self.game_startup_grace_seconds.value(),
             low_cpu_mode=self.low_cpu_mode.isChecked(),
             auto_detect_language=self.auto_detect_language.isChecked(),
             bidirectional_mode=self.bidirectional_mode.isChecked(),

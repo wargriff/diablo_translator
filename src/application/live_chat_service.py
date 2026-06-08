@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.application.game_readiness_service import GameReadinessService
 from src.application.config_service import ConfigService
 from src.application.in_game_chat_router import InGameChatRouter
 from src.application.player_identity_service import PlayerIdentityService
@@ -23,6 +24,7 @@ class LiveChatStatus:
     ocr_line_count: int = 0
     new_message_count: int = 0
     last_error: str = ""
+    wait_hint: str = ""
 
 
 class LiveChatService:
@@ -36,6 +38,7 @@ class LiveChatService:
         config_service: ConfigService,
         player_identity: PlayerIdentityService | None = None,
         chat_router: InGameChatRouter | None = None,
+        game_readiness: GameReadinessService | None = None,
     ) -> None:
         self._chat_monitor = chat_monitor
         self._capture = capture
@@ -44,6 +47,7 @@ class LiveChatService:
         self._config_service = config_service
         self._player_identity = player_identity or PlayerIdentityService()
         self._chat_router = chat_router or InGameChatRouter(pipeline, self._player_identity)
+        self._readiness = game_readiness or GameReadinessService()
         self._translation_listener = None
         self._last_status = LiveChatStatus("idle", "unknown", 1, "d3_1080p")
         self.worker: TranslationWorker | None = None
@@ -75,6 +79,34 @@ class LiveChatService:
     def reset(self) -> None:
         self._chat_monitor.reset()
         self._player_identity.reset()
+        self._readiness.reset()
+
+    def is_game_ready_for_ocr(self) -> bool:
+        config = self._config_service.config
+        return self._readiness.is_ready(
+            self._game_detection,
+            grace_seconds=config.game_startup_grace_seconds,
+        )
+
+    def game_readiness_hint(self) -> str:
+        config = self._config_service.config
+        return self._readiness.evaluate(
+            self._game_detection,
+            grace_seconds=config.game_startup_grace_seconds,
+        )
+
+    def emit_wait_status(self) -> None:
+        hint = self.game_readiness_hint()
+        if not hint:
+            return
+        self._last_status = LiveChatStatus(
+            capture_source=self._last_status.capture_source,
+            display_mode=self._last_status.display_mode,
+            monitor_index=self._last_status.monitor_index,
+            preset_key=self._last_status.preset_key,
+            wait_hint=hint,
+        )
+        self._emit_status()
 
     def prewarm_ocr(self) -> None:
         self._pipeline.ocr.prewarm()

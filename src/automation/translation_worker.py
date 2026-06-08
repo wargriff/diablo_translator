@@ -48,10 +48,6 @@ class TranslationWorker:
 
         self._live_chat.reset()
         self._stop_event.clear()
-        try:
-            self._live_chat.prewarm_ocr()
-        except Exception:
-            pass
         self._thread = threading.Thread(
             target=self._run,
             daemon=True,
@@ -63,6 +59,11 @@ class TranslationWorker:
         self._stop_event.set()
 
     def _run(self) -> None:
+        try:
+            self._live_chat.prewarm_ocr()
+        except Exception:
+            pass
+
         while not self._stop_event.is_set():
             config = self._config_service.config
             fps = max(config.capture_fps, 1)
@@ -71,6 +72,11 @@ class TranslationWorker:
             delay = 1.0 / fps
 
             if not self._live_chat.is_game_running():
+                time.sleep(1.0)
+                continue
+
+            if not self._live_chat.is_game_ready_for_ocr():
+                self._live_chat.emit_wait_status()
                 time.sleep(1.0)
                 continue
 

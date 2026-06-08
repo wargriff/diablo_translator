@@ -43,7 +43,8 @@ class AppConfig:
     auto_detect_player: bool = True
     auto_copy_outgoing: bool = True
     auto_send_to_game: bool = True
-    startup_delay_seconds: int = 3
+    startup_delay_seconds: int = 1
+    game_startup_grace_seconds: int = 12
     low_cpu_mode: bool = True
     auto_detect_language: bool = True
     bidirectional_mode: bool = True
@@ -132,6 +133,12 @@ class ConfigManager:
             config.auto_send_to_game = True
             config.startup_delay_seconds = 3
             version = 8
+            migrated = True
+
+        if version < 9:
+            config.startup_delay_seconds = 1
+            config.game_startup_grace_seconds = 12
+            version = 9
             migrated = True
 
         if migrated:

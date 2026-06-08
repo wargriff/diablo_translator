@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.automation.game_chat_input_service import GameChatInputService
+from src.application.config_service import ConfigService
 from src.application.live_chat_service import LiveChatService
 from src.domain.models.translation_result import TranslationResult
 from src.game_detection.game_detection_service import GameDetectionService
