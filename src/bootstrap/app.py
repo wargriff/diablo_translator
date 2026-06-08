@@ -1,7 +1,7 @@
 import os
 import sys
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
 from src.infrastructure import LoggerManager
@@ -36,34 +36,25 @@ class Application:
 
         splash = create_startup_splash()
         splash.show()
-        app.processEvents()
+        splash.set_progress(5, "Démarrage…")
 
         if warn_if_already_running():
             splash.close()
             return
 
-        splash.showMessage(
-            "Initialisation des services…",
-            alignment=Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
-            color="#d4af37",
-        )
-        app.processEvents()
-
+        splash.set_progress(20, "Initialisation des services…")
         self.container = Container()
 
+        splash.set_progress(55, "Chargement des ressources…")
         AssetManager.prepare()
         app.setWindowIcon(AssetManager.app_icon())
         app.setFont(AssetManager.ui_font(10))
 
-        splash.showMessage(
-            "Préparation de l'interface…",
-            alignment=Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
-            color="#d4af37",
-        )
-        app.processEvents()
-
+        splash.set_progress(80, "Préparation de l'interface…")
         window = MainWindow(self.container)
         window.show()
+
+        splash.set_progress(100, "Overlay prêt")
         splash.finish(window)
 
         delay_ms = max(self.container.config.startup_delay_seconds, 1) * 1000
