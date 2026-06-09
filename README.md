@@ -2,30 +2,33 @@
 
 # Diablo Translator
 
-**Traduction en temps réel pour Diablo III, Diablo IV et Diablo Immortal**
+**Traduisez le chat Diablo en temps réel — sans barrière de langue en multijoueur**
 
-OCR du chat en direct · Google & DeepL · Détection automatique des langues · Interface style Diablo IV
+Application Windows avec OCR du chat en direct, traduction Google & DeepL, interface PyQt6 style Diablo IV, companion web et exécutable portable.
 
+[![Version](https://img.shields.io/badge/version-2.1.1-gold?style=flat-square)](#)
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![PyQt6](https://img.shields.io/badge/GUI-PyQt6-green)](https://www.riverbankcomputing.com/software/pyqt/)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![PyQt6](https://img.shields.io/badge/GUI-PyQt6-green?style=flat-square)](https://www.riverbankcomputing.com/software/pyqt/)
+[![Next.js](https://img.shields.io/badge/Web-Next.js-black?style=flat-square&logo=next.js)](web/)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+
+[Installation](#installation) · [Démarrage rapide](#démarrage-rapide) · [Companion web](#companion-web-optionnel) · [FAQ](#faq) · [Changelog](CHANGELOG.md)
 
 </div>
 
 ---
 
-## Sommaire
+## Présentation
 
-- [Fonctionnalités](#fonctionnalités)
-- [Jeux supportés](#jeux-supportés)
-- [Démarrage rapide](#démarrage-rapide)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Utilisation](#utilisation)
-- [Architecture](#architecture)
-- [Structure du projet](#structure-du-projet)
-- [Développement](#développement)
-- [FAQ](#faq)
+**Diablo Translator** lit le chat affiché à l'écran (OCR, sans injection mémoire), détecte la langue et traduit automatiquement les messages des autres joueurs. Idéal pour jouer à **Diablo III**, **Diablo IV** ou **Diablo Immortal** avec des coéquipiers internationaux.
+
+| Mode | Usage | Commande |
+|------|--------|----------|
+| **Desktop** (recommandé) | OCR + overlay en jeu | `START.bat` ou `DiabloTranslator.exe` |
+| **Sanctuaire Hub** | Menu avancé, services, live | `START.bat hub` |
+| **Web companion** | Historique, stats, live chat | `START.bat web` → http://127.0.0.1:3000 |
+
+> Mises à jour et correctifs publiés régulièrement — suivez les [releases](https://github.com/wargriff/diablo_translator/releases) et le [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -33,14 +36,14 @@ OCR du chat en direct · Google & DeepL · Détection automatique des langues ·
 
 | Catégorie | Détail |
 |-----------|--------|
-| **Chat live** | Lecture OCR de la zone chat du jeu (coin inférieur gauche) |
-| **Traduction** | Moteurs **Google** et **DeepL**, mode **bidirectionnel** (chat → FR, vos réponses → langue du joueur) |
-| **Langues** | Détection automatique · mixte FR/EN conservé (« yo la team ») |
-| **Jeux** | Détection en temps réel de D3, D4 et Immortal |
-| **Voix** | Entrée micro + lecture vocale optionnelle |
-| **Cache** | Traductions persistées sur disque (`cache/translations/`) |
-| **Historique** | Grimoire des traductions + export JSON/CSV |
-| **Interface** | Thème sombre inspiré de Diablo IV, icône dorée, raccourci bureau |
+| **Chat live** | OCR de la zone chat (coin inférieur gauche), surveillance automatique |
+| **Traduction** | **Google** et **DeepL**, mode bidirectionnel (chat → FR, vos réponses → langue du joueur) |
+| **Langues** | Détection automatique · expressions mixtes conservées (« yo la team ») |
+| **Jeux** | Détection en temps réel D3, D4 et Immortal |
+| **Voix** | Entrée micro + lecture vocale (optionnel) |
+| **Historique** | Grimoire des traductions, export JSON/CSV |
+| **Cache** | Traductions persistées (`cache/translations/`) |
+| **Interface** | Thème sombre Diablo IV, icône dorée, raccourci bureau |
 
 ---
 
@@ -54,24 +57,28 @@ OCR du chat en direct · Google & DeepL · Détection automatique des langues ·
 
 ---
 
-## Démarrage rapide (v2 — bureau)
+## Démarrage rapide
 
-| Action | Commande |
-|--------|----------|
-| **Lancer l'app** | Double-clic `Lancer.bat` ou `START.bat` |
-| **Menu Sanctuaire** | `START.bat hub` |
-| **Companion web** | `START.bat web` |
-| **Construire l'exe** | `Build-Pro.bat` |
-| **Raccourci bureau** | `powershell -File build\create_desktop_shortcut.ps1` |
-
-Sortie exe : `build\dist\DiabloTranslator.exe` (double-clic = interface traduction).
+### Depuis GitHub
 
 ```bash
 git clone https://github.com/wargriff/diablo_translator.git
 cd diablo_translator
-pip install -r requirements.txt
-python launcher.py gui
+python build/install_dependencies.py
+START.bat
 ```
+
+### Windows (déjà installé)
+
+| Action | Commande |
+|--------|----------|
+| Lancer l'app | Double-clic `Lancer.bat` ou `START.bat` |
+| Menu Sanctuaire | `START.bat hub` |
+| Companion web | `START.bat web` |
+| Construire l'exe | `Build-Pro.bat` |
+| Raccourci bureau | `powershell -File build\create_desktop_shortcut.ps1` |
+
+Exécutable : `build\dist\DiabloTranslator.exe`
 
 ---
 
@@ -81,85 +88,52 @@ python launcher.py gui
 
 - **Windows 10/11**
 - **Python 3.12+**
-- Connexion Internet (traduction + OCR au premier lancement)
+- Connexion Internet (traduction + téléchargement modèles OCR au 1er lancement)
+- **Node.js** (uniquement pour le companion web — LTS ou binaire dans `C:\src`)
 
 ### Dépendances
 
 ```bash
 pip install -r requirements.txt
-pip install -r backend/requirements.txt   # API + companion web
-pip install -r requirements-voice.txt   # micro (SoundDevice, optionnel)
-python build/install_dependencies.py    # tout installer + verification
+pip install -r backend/requirements.txt    # API FastAPI (web companion)
+pip install -r requirements-voice.txt      # micro, optionnel
+python build/install_dependencies.py       # tout + vérification
 ```
-
-### Companion web (optionnel)
-
-Prérequis : **Node.js** (LTS ou binaire dans `C:\src`).
-
-```bash
-START.bat web
-# ou :
-python launcher.py server
-python launcher.py web
-```
-
-Ouvrir **http://127.0.0.1:3000** — l’app desktop reste recommandée pour l’OCR en jeu.
-
-Les mises à jour et correctifs sont publiés régulièrement sur [GitHub](https://github.com/wargriff/diablo_translator) — voir [CHANGELOG.md](CHANGELOG.md).
-
-Pour l'entrée vocale (optionnel) :
-```bash
-pip install -r requirements-voice.txt
-```
-Utilise **SoundDevice** (compatible Python 3.14+, remplace PyAudio).
 
 ### DeepL (optionnel, recommandé)
 
-1. Créez une clé API sur [DeepL Pro API](https://www.deepl.com/pro-api)
-2. Copiez le fichier d'exemple :
+1. Clé API sur [DeepL Pro API](https://www.deepl.com/pro-api)
+2. `copy .env.example .env` puis ajoutez `DEEPL_API_KEY=votre_cle`
+3. Ou **Paramètres → Clé API DeepL** dans l'app
 
-```bash
-copy .env.example .env
-```
-
-3. Ajoutez votre clé :
-
-```env
-DEEPL_API_KEY=votre_cle_ici
-```
-
-Ou renseignez-la directement dans **Paramètres → Clé API DeepL**.
+Sans clé DeepL, Google est utilisé automatiquement.
 
 ---
 
-## Configuration
+## Companion web (optionnel)
 
-Les paramètres sont stockés dans `user_data/settings.json`.
+Le web **ne remplace pas** l'app desktop pour l'OCR en jeu. Il sert d'interface complémentaire (historique, live, statistiques).
 
-| Option | Description | Défaut |
-|--------|-------------|--------|
-| `language` | Langue maison (ex. français) | `fr` |
-| `bidirectional_mode` | Chat étranger → FR, vos messages FR → langue du joueur | `true` |
-| `default_reply_language` | Langue de réponse avant le 1er message étranger | `en` |
-| `preserve_mixed_language` | Garder « yo la team » tel quel | `true` |
-| `translator` | `google` ou `deepl` | `google` |
-| `chat_monitor_enabled` | Surveillance OCR du chat | `true` |
-| `chat_region_preset` | Zone chat : `auto`, `d3`, `d4`, `immortal` | `auto` |
-| `auto_detect_language` | Ignorer si déjà dans la langue cible | `true` |
-| `speak_translation` | Lecture vocale des traductions | `false` |
+```bash
+START.bat web
+```
+
+Ou manuellement :
+
+```bash
+python launcher.py server    # API sur :8000
+python launcher.py web       # Next.js sur :3000
+```
+
+Ouvrir **http://127.0.0.1:3000**
+
+**Node.js introuvable ?** Placez `node.exe` dans `C:\src` ou définissez `DT_NODE_HOME`. Le lanceur détecte aussi Program Files et `%LOCALAPPDATA%\Programs\node`.
 
 ---
 
 ## Utilisation
 
-### Interface graphique
-
-```bash
-python launcher.py
-python launcher.py gui
-```
-
-**Workflow recommandé :**
+### Workflow en jeu
 
 1. Lancez **Diablo III, IV ou Immortal**
 2. Ouvrez l'onglet **Gameplay**
@@ -170,23 +144,40 @@ python launcher.py gui
 
 | Raccourci | Action |
 |-----------|--------|
-| `Ctrl + Entrée` | Traduire le message (dans le champ chat ou hors saisie) |
-| `Ctrl + Shift + M` | Activer / désactiver le micro (hors champ de saisie) |
-| `Ctrl + Shift + R` | Actualiser l'état des jeux (hors champ de saisie) |
+| `Ctrl + Entrée` | Traduire le message |
+| `Ctrl + Shift + M` | Activer / désactiver le micro |
+| `Ctrl + Shift + R` | Actualiser l'état des jeux |
 
-Dans le champ chat, **Entrée seule ne traduit plus** — vous pouvez taper librement.
+Dans le champ chat, **Entrée seule ne traduit pas** — vous pouvez taper librement.
 
 ### Ligne de commande
 
 ```bash
-python launcher.py check                      # Vérifier les dépendances
-python launcher.py game                       # État D3 / D4 / Immortal
+python launcher.py check
+python launcher.py game
 python launcher.py translate "looking for group"
-python launcher.py stats                      # Statistiques
-python launcher.py export                     # Export JSON
-python launcher.py export --format csv        # Export CSV
-python launcher.py test                       # Tests unitaires
+python launcher.py stats
+python launcher.py export --format csv
+python launcher.py test
 ```
+
+---
+
+## Configuration
+
+Fichier : `user_data/settings.json`
+
+| Option | Description | Défaut |
+|--------|-------------|--------|
+| `language` | Langue maison | `fr` |
+| `bidirectional_mode` | Chat étranger → FR, vos messages → langue du joueur | `true` |
+| `default_reply_language` | Langue de réponse initiale | `en` |
+| `preserve_mixed_language` | Garder « yo la team » tel quel | `true` |
+| `translator` | `google` ou `deepl` | `google` |
+| `chat_monitor_enabled` | Surveillance OCR | `true` |
+| `chat_region_preset` | `auto`, `d3`, `d4`, `immortal` | `auto` |
+| `auto_detect_language` | Ignorer si déjà dans la langue cible | `true` |
+| `speak_translation` | Lecture vocale | `false` |
 
 ---
 
@@ -194,21 +185,13 @@ python launcher.py test                       # Tests unitaires
 
 ```
 launcher.py
-    └── bootstrap/          Point d'entrée application
-            ├── infrastructure/   Config, DI, cache, assets
-            ├── translation/      Providers Google & DeepL
-            ├── chat/             Monitoring OCR du chat
-            ├── voice/            Entrée/sortie vocale
-            ├── game_detection/   Détection D3 · D4 · Immortal
-            └── ui/               Interface PyQt6
+    ├── src/                  Application desktop (PyQt6, OCR, traduction)
+    ├── backend/              API FastAPI (:8000)
+    ├── web/                  Companion Next.js (:3000)
+    └── launcher/             Scripts de lancement (web, server, hub)
 ```
 
-**Couches principales :**
-
-- `domain/` — Modèles et interfaces (contrats)
-- `translation/providers/` — Google, DeepL (extensible)
-- `cache/` — Cache persistant JSON
-- `assets/` — Thèmes, icônes, polices
+Couches principales : `domain/`, `translation/providers/`, `chat/`, `cache/`, `assets/`.
 
 ---
 
@@ -216,94 +199,64 @@ launcher.py
 
 ```
 Diablo_Translator/
-├── assets/
-│   ├── fonts/          Polices personnalisées
-│   ├── icons/          app.svg, app.ico (Windows), generate_app_icon.py
-│   └── themes/         Thème diablo_dark.qss
-├── build/              Compilation PyInstaller
-├── cache/              Cache traductions & OCR
-├── models/             Modèles EasyOCR (auto-téléchargés)
-├── src/                Code source
-├── tests/              Tests unitaires
-├── user_data/          Config & historique utilisateur
-└── launcher.py         Point d'entrée unique
+├── START.bat / Lancer.bat    Lanceurs Windows
+├── Build-Pro.bat             Build PyInstaller
+├── assets/                   Thèmes, icônes, polices
+├── build/                    Compilation exe
+├── backend/                  API REST
+├── web/                      Interface web
+├── src/                      Code source desktop
+├── tests/                    Tests unitaires
+├── user_data/                Config & historique (local)
+└── launcher.py               Point d'entrée unique
 ```
 
 ---
 
 ## Développement
 
-### Lancer les tests
-
 ```bash
 python launcher.py test
-# ou
-python tests/run_tests.py
-```
-
-### Compiler un exécutable
-
-```bash
-python assets/icons/generate_app_icon.py   # génère app.ico + app.png
+python assets/icons/generate_app_icon.py
 python build/build.py
 ```
 
-L'exécutable est généré dans `build/dist/` avec l'icône Diablo intégrée.
-
-**Raccourci bureau (Windows) :**
-
-```powershell
-powershell -ExecutionPolicy Bypass -File build/create_desktop_shortcut.ps1
-```
-
-Ou double-cliquez `build/Lancer Diablo Translator.bat`.
+CI automatique sur chaque push (`/.github/workflows/ci.yml`). Dependabot vérifie les dépendances chaque semaine.
 
 ---
 
 ## FAQ
 
 **Le programme lit-il le chat en direct ?**  
-Oui, via **OCR** sur la zone chat affichée à l'écran (pas d'injection mémoire). Placez le chat en bas à gauche comme en jeu.
+Oui, via **OCR** sur la zone chat à l'écran. Placez le chat en bas à gauche comme en jeu.
+
+**Le web ne démarre pas ?**  
+Installez `backend/requirements.txt`, vérifiez Node.js (`python launcher.py web`), puis `START.bat web`.
 
 **DeepL ne fonctionne pas ?**  
-Vérifiez `DEEPL_API_KEY` dans `.env` ou les paramètres. Sans clé, Google est utilisé automatiquement.
+Vérifiez `DEEPL_API_KEY` dans `.env` ou les paramètres.
 
-**Windows bloque l'exécutable (Contrôle intelligent des applications) ?**  
-C'est normal pour un `.exe` non signé. Utilisez le raccourci bureau ou `build/Lancer Diablo Translator.bat` : le script débloque le fichier et bascule automatiquement sur Python si Windows refuse l'exe. Vous pouvez aussi désactiver le Contrôle intelligent dans **Sécurité Windows → Contrôle des applications et du navigateur**.
-
-**L'icône est floue ?**  
-Regénérez l'icône HD puis le raccourci :
-```powershell
-python assets/icons/generate_app_icon.py
-powershell -ExecutionPolicy Bypass -File build/create_desktop_shortcut.ps1
-```
+**Windows bloque l'exe ?**  
+Normal pour un `.exe` non signé. Utilisez `Lancer.bat` ou désactivez le Contrôle intelligent des applications.
 
 **Le micro ne répond pas ?**  
-Installez les dépendances vocales puis vérifiez :
-```bash
-pip install -r requirements-voice.txt
-python launcher.py check
-```
-Utilise **SoundDevice** (plus besoin de PyAudio sur Python 3.14).  
-Autorisez aussi l'accès micro dans les paramètres Windows.
+`pip install -r requirements-voice.txt` puis `python launcher.py check`.
 
-**La saisie dans le chat bug ou perd le focus ?**  
-Désactivez « Remonter automatiquement » dans Paramètres → Overlay si vous tapez souvent dans le champ de test.
-
-**Les modèles OCR sont lents au premier lancement ?**  
-Normal : EasyOCR télécharge les modèles dans `models/` une seule fois.
+**Modèles OCR lents au 1er lancement ?**  
+EasyOCR télécharge les modèles dans `models/` une seule fois.
 
 ---
 
 ## Avertissement
 
-Ce projet est un outil communautaire **non affilié** à Blizzard Entertainment.  
-Utilisez-le conformément aux conditions d'utilisation de vos jeux.
+Outil communautaire **non affilié** à Blizzard Entertainment. Utilisez-le conformément aux conditions d'utilisation de vos jeux.
 
 ---
 
 <div align="center">
 
-**Diablo Translator** — traduire le chat, jouer sans barrière de langue.
+**Diablo Translator v2.1.1** — traduire le chat, jouer sans barrière de langue.
+
+[Signaler un bug](https://github.com/wargriff/diablo_translator/issues) · [Voir les mises à jour](CHANGELOG.md)
 
 </div>

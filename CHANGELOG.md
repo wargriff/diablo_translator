@@ -26,6 +26,7 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 - Commande par défaut : `gui` au lieu de `menu`.
 - Spec PyInstaller allégée (desktop uniquement).
+- **README** : présentation clarifiée, tableau Desktop/Hub/Web, guide web et FAQ enrichie.
 
 ## [2.1.0] — versions antérieures
 
