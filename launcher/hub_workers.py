@@ -1,26 +1,17 @@
 from __future__ import annotations
 
-import urllib.error
-import urllib.request
-
 from PyQt6.QtCore import QThread, pyqtSignal
+
+from launcher.api_probe import DEFAULT_API_PORT, probe_diablo_api, probe_web_home
 
 
 class HubStatusWorker(QThread):
     finished = pyqtSignal(bool, bool)
 
     def run(self) -> None:
-        api_ok = self._probe("http://127.0.0.1:8000/api/v1/health")
-        web_ok = self._probe("http://127.0.0.1:3000")
+        api_ok = probe_diablo_api(DEFAULT_API_PORT)
+        web_ok = probe_web_home()
         self.finished.emit(api_ok, web_ok)
-
-    @staticmethod
-    def _probe(url: str) -> bool:
-        try:
-            with urllib.request.urlopen(url, timeout=0.6) as response:
-                return response.status == 200
-        except (urllib.error.URLError, TimeoutError, OSError):
-            return False
 
 
 class HubTranslateWorker(QThread):

@@ -9,6 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REQUIREMENTS = PROJECT_ROOT / "requirements.txt"
+BACKEND_REQUIREMENTS = PROJECT_ROOT / "backend" / "requirements.txt"
 VOICE_REQUIREMENTS = PROJECT_ROOT / "requirements-voice.txt"
 
 
@@ -28,6 +29,14 @@ def main() -> int:
         if code != 0:
             print("\nEchec installation principale.")
             return code
+
+    if BACKEND_REQUIREMENTS.exists():
+        print("\nInstallation API web (FastAPI)...")
+        backend_code = run(
+            [sys.executable, "-m", "pip", "install", "-r", str(BACKEND_REQUIREMENTS)]
+        )
+        if backend_code != 0:
+            print("\nAPI web non installee — pip install -r backend/requirements.txt")
 
     if VOICE_REQUIREMENTS.exists():
         print("\nInstallation micro (PyAudio, optionnel)...")

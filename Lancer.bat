@@ -1,5 +1,4 @@
 @echo off
-setlocal
+REM Raccourci Diablo Translator — lance l'interface directement
 cd /d "%~dp0"
-py -3 launcher.py menu
-if errorlevel 1 pause
+call START.bat gui %*

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -10,38 +8,21 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 WEB_DIR = PROJECT_ROOT / "web"
 
 
-def _find_npm() -> str | None:
-    npm = shutil.which("npm")
-    if npm:
-        return npm
-    if sys.platform == "win32":
-        candidates = (
-            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "nodejs" / "npm.cmd",
-            Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "nodejs" / "npm.cmd",
-            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "node" / "npm.cmd",
-            Path(os.environ.get("APPDATA", "")) / "npm" / "npm.cmd",
-        )
-        for candidate in candidates:
-            if candidate.exists():
-                return str(candidate)
-    return None
+def _ensure_node_modules(npm: Path) -> bool:
+    if (WEB_DIR / "node_modules").is_dir():
+        return True
+    print("Installation web (npm install) — premiere fois...")
+    from launcher.nodejs import node_env
 
-
-def _web_env(port: int) -> dict[str, str]:
-    env = {**os.environ, "PORT": str(port)}
-    if sys.platform != "win32":
-        return env
-    node_dirs: list[str] = []
-    for candidate in (
-        Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "nodejs",
-        Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "nodejs",
-        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "node",
-    ):
-        if candidate.exists():
-            node_dirs.append(str(candidate))
-    if node_dirs:
-        env["PATH"] = os.pathsep.join(node_dirs + [env.get("PATH", "")])
-    return env
+    result = subprocess.run(
+        [str(npm), "install"],
+        cwd=WEB_DIR,
+        env=node_env(),
+    )
+    if result.returncode != 0:
+        print("npm install a echoue — verifiez Node.js et votre connexion.")
+        return False
+    return True
 
 
 def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True) -> int:
@@ -54,9 +35,16 @@ def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True) -> 
         print("web/package.json manquant — restaurez les sources Next.js du projet.")
         return 1
 
-    npm = _find_npm()
+    from launcher.nodejs import find_npm, node_env, npm_hint
+
+    npm = find_npm()
     if npm is None:
-        print("npm introuvable. Installez Node.js LTS ou ajoutez C:\\Program Files\\nodejs au PATH.")
+        print(npm_hint())
+        return 1
+
+    print(npm_hint())
+
+    if not _ensure_node_modules(npm):
         return 1
 
     from launcher.ports import is_port_in_use, prepare_port
@@ -69,8 +57,8 @@ def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True) -> 
 
     print(f"Web companion : http://127.0.0.1:{port}")
     print("Arret : Ctrl+C")
-    env = _web_env(port)
-    command = [npm, "run", "dev", "--", "-p", str(port)]
+    env = node_env()
+    command = [str(npm), "run", "dev", "--", "-p", str(port)]
 
     try:
         result = subprocess.run(command, cwd=WEB_DIR, env=env)

@@ -3,32 +3,34 @@ from __future__ import annotations
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 import webbrowser
 from collections.abc import Callable
-from pathlib import Path
 
+from launcher.api_probe import (
+    DEFAULT_API_PORT,
+    probe_diablo_api,
+    probe_web_home,
+)
 from src.infrastructure.paths import PROJECT_ROOT
 
 PYTHON = sys.executable
 LAUNCHER = PROJECT_ROOT / "launcher.py"
 DEFAULT_WEB_PORT = 3000
-DEFAULT_API_PORT = 8000
 
 
-def probe_url(url: str, *, timeout: float = 0.6) -> bool:
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
-            return response.status == 200
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
-        return False
-
-
-def wait_for_url(url: str, *, timeout_sec: float = 60, interval: float = 0.5) -> bool:
+def wait_for_api(*, timeout_sec: float = 60, interval: float = 0.5) -> bool:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
-        if probe_url(url, timeout=1.0):
+        if probe_diablo_api(DEFAULT_API_PORT, timeout=1.0):
+            return True
+        time.sleep(interval)
+    return False
+
+
+def wait_for_web(port: int = DEFAULT_WEB_PORT, *, timeout_sec: float = 90, interval: float = 0.5) -> bool:
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if probe_web_home(port, timeout=1.0):
             return True
         time.sleep(interval)
     return False
@@ -62,26 +64,25 @@ def prepare_live_web(
     web_port: int = DEFAULT_WEB_PORT,
 ) -> tuple[bool, str]:
     """Démarre API + Web si nécessaire, puis ouvre /live."""
-    api_url = f"http://127.0.0.1:{DEFAULT_API_PORT}/api/v1/health"
     web_url = f"http://127.0.0.1:{web_port}"
 
-    if not probe_url(api_url):
+    if not probe_diablo_api(DEFAULT_API_PORT):
         proc = run_server()
         if on_spawn:
             on_spawn(proc)
         else:
             children.append(proc)
-        if not wait_for_url(api_url, timeout_sec=35):
-            return False, "API indisponible — vérifiez le serveur (:8000)"
+        if not wait_for_api(timeout_sec=35):
+            return False, "API indisponible — pip install -r backend/requirements.txt puis relancez"
 
-    if not probe_url(web_url):
+    if not probe_web_home(web_port):
         proc = run_web(kill=True)
         if on_spawn:
             on_spawn(proc)
         else:
             children.append(proc)
-        if not wait_for_url(web_url, timeout_sec=90):
-            return False, "Web indisponible — installez Node.js et lancez Services → Web"
+        if not wait_for_web(web_port, timeout_sec=90):
+            return False, "Web indisponible — Node.js (C:\\src ou PATH) puis npm install dans web/"
 
     open_web_browser(web_port, "/live")
     return True, f"Live web ouvert — {web_url}/live"

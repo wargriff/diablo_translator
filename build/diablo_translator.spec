@@ -1,4 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
+# Diablo Translator v2 — build bureau uniquement (sans API / web / mobile)
 
 from pathlib import Path
 
@@ -14,7 +15,6 @@ runtime_hook = str(build_dir / "runtime_hooks" / "pyi_rth_win_dll.py")
 
 src_hiddenimports = collect_submodules("src")
 launcher_hiddenimports = collect_submodules("launcher")
-backend_hiddenimports = collect_submodules("backend")
 
 hiddenimports = [
     "PyQt6",
@@ -39,34 +39,19 @@ hiddenimports = [
     "shapely",
     "torch",
     "torchvision",
-    "src.translation.language_detection_service",
-    "src.translation.conversation_context",
-    "src.translation.translation_service",
-    "src.translation.translation_pipeline",
-    "src.application.live_chat_service",
-    "src.application.in_game_chat_router",
-    "src.application.config_profiles",
-    "src.capture.capture_region_resolver",
-    "src.capture.game_window_service",
-    "src.infrastructure.container",
     "src.bootstrap.app",
     "src.programs.cli",
     "launcher.hub",
-    "launcher.processes",
     "launcher.hub_sounds",
-    "launcher.server",
-    "launcher.web",
-    "launcher.mobile",
-    "backend.app.main",
-    "uvicorn",
-    "fastapi",
-] + src_hiddenimports + launcher_hiddenimports + backend_hiddenimports
+    "launcher.hub_workers",
+    "launcher.hub_translator",
+    "launcher.processes",
+] + src_hiddenimports + launcher_hiddenimports
 
 binaries = []
 datas = [
     (str(project_root / "assets"), "assets"),
     (str(project_root / "launcher" / "hub_theme.qss"), "launcher"),
-    (str(project_root / "backend"), "backend"),
     (str(project_root / ".env.example"), "."),
 ]
 
@@ -109,6 +94,9 @@ a = Analysis(
         "win32api",
         "win32con",
         "pywin32",
+        "fastapi",
+        "uvicorn",
+        "starlette",
     ],
     noarchive=False,
     optimize=0,

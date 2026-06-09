@@ -54,13 +54,23 @@ OCR du chat en direct · Google & DeepL · Détection automatique des langues ·
 
 ---
 
-## Démarrage rapide
+## Démarrage rapide (v2 — bureau)
+
+| Action | Commande |
+|--------|----------|
+| **Lancer l'app** | Double-clic `Lancer.bat` ou `START.bat` |
+| **Menu Sanctuaire** | `START.bat hub` |
+| **Companion web** | `START.bat web` |
+| **Construire l'exe** | `Build-Pro.bat` |
+| **Raccourci bureau** | `powershell -File build\create_desktop_shortcut.ps1` |
+
+Sortie exe : `build\dist\DiabloTranslator.exe` (double-clic = interface traduction).
 
 ```bash
 git clone https://github.com/wargriff/diablo_translator.git
 cd diablo_translator
 pip install -r requirements.txt
-python launcher.py
+python launcher.py gui
 ```
 
 ---
@@ -77,9 +87,25 @@ python launcher.py
 
 ```bash
 pip install -r requirements.txt
+pip install -r backend/requirements.txt   # API + companion web
 pip install -r requirements-voice.txt   # micro (SoundDevice, optionnel)
 python build/install_dependencies.py    # tout installer + verification
 ```
+
+### Companion web (optionnel)
+
+Prérequis : **Node.js** (LTS ou binaire dans `C:\src`).
+
+```bash
+START.bat web
+# ou :
+python launcher.py server
+python launcher.py web
+```
+
+Ouvrir **http://127.0.0.1:3000** — l’app desktop reste recommandée pour l’OCR en jeu.
+
+Les mises à jour et correctifs sont publiés régulièrement sur [GitHub](https://github.com/wargriff/diablo_translator) — voir [CHANGELOG.md](CHANGELOG.md).
 
 Pour l'entrée vocale (optionnel) :
 ```bash

@@ -32,16 +32,16 @@ function Start-PythonApp {
     Set-Location $projectRoot
 
     if (Get-Command py -ErrorAction SilentlyContinue) {
-        Start-Process py -ArgumentList "-3", "launcher.py", "menu" -WorkingDirectory $projectRoot
+        Start-Process py -ArgumentList "-3", "launcher.py", "gui" -WorkingDirectory $projectRoot
         return
     }
 
     if (Get-Command pythonw -ErrorAction SilentlyContinue) {
-        Start-Process pythonw -ArgumentList "launcher.py", "menu" -WorkingDirectory $projectRoot
+        Start-Process pythonw -ArgumentList "launcher.py", "gui" -WorkingDirectory $projectRoot
         return
     }
 
-    Start-Process python -ArgumentList "launcher.py", "menu" -WorkingDirectory $projectRoot
+    Start-Process python -ArgumentList "launcher.py", "gui" -WorkingDirectory $projectRoot
 }
 
 if (Test-Path -LiteralPath $securityScript) {

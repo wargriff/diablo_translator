@@ -166,7 +166,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def dispatch(args: argparse.Namespace) -> int:
-    command = args.command or "menu"
+    command = args.command or "gui"
 
     if command == "check":
         from src.programs.dependency_checker import print_dependency_report
