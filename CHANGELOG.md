@@ -4,6 +4,19 @@ Toutes les modifications notables de **Diablo Translator** sont documentées ici
 
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [2.1.2] — 2026-06-09
+
+### Ajouté
+
+- **Centre de contrôle** unique (`START.bat`, `Lancer.bat`, `launcher.py control`) — lance OCR, API, Web, mobile, build exe.
+- Panneau diagnostics (Node, API, ports) et bouton **Plateforme API+Web** orchestré.
+
+### Corrigé
+
+- Web : démarrage séquentiel API puis Next.js, proxy `API_PROXY_TARGET`, hostname `127.0.0.1`.
+- Next.js : `outputFileTracingRoot` pour éviter le mauvais dossier racine (lockfiles).
+- Arrêt services : libère les ports 8000/3000 en plus des processus suivis.
+
 ## [2.1.1] — 2026-06-09
 
 ### Corrigé

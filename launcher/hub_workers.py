@@ -2,15 +2,18 @@ from __future__ import annotations
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from launcher.api_probe import DEFAULT_API_PORT, probe_diablo_api, probe_web_home
+from launcher.api_probe import probe_diablo_api, probe_web_home
+from launcher.service_ports import resolve_api_port, resolve_web_port
 
 
 class HubStatusWorker(QThread):
     finished = pyqtSignal(bool, bool)
 
     def run(self) -> None:
-        api_ok = probe_diablo_api(DEFAULT_API_PORT)
-        web_ok = probe_web_home()
+        api_port = resolve_api_port()
+        web_port = resolve_web_port()
+        api_ok = probe_diablo_api(api_port)
+        web_ok = probe_web_home(web_port)
         self.finished.emit(api_ok, web_ok)
 
 

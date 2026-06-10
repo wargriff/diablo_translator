@@ -24,9 +24,9 @@ Application Windows avec OCR du chat en direct, traduction Google & DeepL, inter
 
 | Mode | Usage | Commande |
 |------|--------|----------|
-| **Desktop** (recommandé) | OCR + overlay en jeu | `START.bat` ou `DiabloTranslator.exe` |
-| **Sanctuaire Hub** | Menu avancé, services, live | `START.bat hub` |
-| **Web companion** | Historique, stats, live chat | `START.bat web` → http://127.0.0.1:3000 |
+| **Centre de contrôle** (défaut) | Lance OCR, API, Web, build | `START.bat` ou `Lancer.bat` |
+| **Desktop OCR** | Overlay en jeu | `START.bat gui` ou bouton dans le centre |
+| **Web companion** | Historique, stats, live | Bouton **Plateforme API+Web** → http://127.0.0.1:3000 |
 
 > Mises à jour et correctifs publiés régulièrement — suivez les [releases](https://github.com/wargriff/diablo_translator/releases) et le [CHANGELOG](CHANGELOG.md).
 
@@ -255,7 +255,7 @@ Outil communautaire **non affilié** à Blizzard Entertainment. Utilisez-le conf
 
 <div align="center">
 
-**Diablo Translator v2.1.1** — traduire le chat, jouer sans barrière de langue.
+**Diablo Translator v2.1.2** — traduire le chat, jouer sans barrière de langue.
 
 [Signaler un bug](https://github.com/wargriff/diablo_translator/issues) · [Voir les mises à jour](CHANGELOG.md)
 

@@ -21,19 +21,21 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from launcher.control_panel import ControlPanelWidget
 from launcher.hub_sounds import HubSoundPlayer
 from launcher.hub_translator import HubTranslatorPanel
 from launcher.hub_workers import HubStatusWorker
 from launcher.processes import (
+    launch_platform_orchestrated,
     prepare_live_web,
     run_cli_tool,
     run_desktop,
     run_mobile,
-    run_platform,
     run_server,
     run_web,
-    terminate_processes,
+    stop_all_services,
 )
+from launcher.service_ports import resolve_web_port, web_base_url
 from src.infrastructure.paths import BUNDLE_ROOT, PROJECT_ROOT
 from src.services.history_events import on_translation_added
 
@@ -41,16 +43,17 @@ THEME_PATH = BUNDLE_ROOT / "assets" / "themes" / "diablo_dark.qss"
 HUB_STYLES = BUNDLE_ROOT / "launcher" / "hub_theme.qss"
 HISTORY_LIMIT = 15
 
-VIEW_TRANSLATION = 0
-VIEW_HISTORY = 1
+VIEW_CONTROL = 0
+VIEW_TRANSLATION = 1
+VIEW_HISTORY = 2
 
 
 class SanctuaryHubWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Diablo Translator — Sanctuaire")
-        self.setMinimumSize(880, 600)
-        self.resize(960, 680)
+        self.setWindowTitle("Diablo Translator — Centre de contrôle")
+        self.setMinimumSize(920, 640)
+        self.resize(980, 720)
         self._children: list[subprocess.Popen] = []
         self._service_online = {"api": False, "web": False}
         self._sounds = HubSoundPlayer()
@@ -59,8 +62,9 @@ class SanctuaryHubWindow(QMainWindow):
         self._view_actions: list[QAction] = []
         self._live_action: QAction | None = None
         self._stack: QStackedWidget | None = None
+        self._control_panel: ControlPanelWidget | None = None
         self._status_refresh_running = False
-        self._current_view = VIEW_TRANSLATION
+        self._current_view = VIEW_CONTROL
 
         self._build_menubar()
         self._build_statusbar()
@@ -120,10 +124,14 @@ class SanctuaryHubWindow(QMainWindow):
         services.addAction("Arrêter tout", self._stop_all)
 
         view = bar.addMenu("Affichage")
-        for label, view_index in (("Traduction", VIEW_TRANSLATION), ("Chroniques", VIEW_HISTORY)):
+        for label, view_index in (
+            ("Contrôle", VIEW_CONTROL),
+            ("Traduction", VIEW_TRANSLATION),
+            ("Chroniques", VIEW_HISTORY),
+        ):
             action = view.addAction(label, lambda checked=False, i=view_index: self._switch_view(i))
             action.setCheckable(True)
-            action.setChecked(view_index == VIEW_TRANSLATION)
+            action.setChecked(view_index == VIEW_CONTROL)
             self._view_actions.append(action)
 
         rites = bar.addMenu("Rites")
@@ -132,12 +140,12 @@ class SanctuaryHubWindow(QMainWindow):
 
         parametres = bar.addMenu("Paramètres")
         parametres.addAction("settings.json", self._open_settings_file)
-        parametres.addAction("Réglages web", lambda: webbrowser.open("http://127.0.0.1:3000/parametres"))
+        parametres.addAction("Réglages web", lambda: webbrowser.open(f"{web_base_url()}/parametres"))
         parametres.addSeparator()
         parametres.addAction("Statistiques", lambda: self._run_tool("stats"))
         parametres.addAction("Exporter historique", lambda: self._run_tool("export"))
         parametres.addAction("Tests unitaires", lambda: self._run_tool("test"))
-        parametres.addAction("Logs web", lambda: webbrowser.open("http://127.0.0.1:3000/logs"))
+        parametres.addAction("Logs web", lambda: webbrowser.open(f"{web_base_url()}/logs"))
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -157,7 +165,7 @@ class SanctuaryHubWindow(QMainWindow):
 
         title = QLabel("DIABLO TRANSLATOR")
         title.setObjectName("HubHeaderTitle")
-        subtitle = QLabel("Sanctuaire — traduction & OCR")
+        subtitle = QLabel("Centre de contrôle — lanceurs & services")
         subtitle.setObjectName("MutedText")
 
         left = QVBoxLayout()
@@ -180,19 +188,34 @@ class SanctuaryHubWindow(QMainWindow):
 
     def _build_stack(self) -> QStackedWidget:
         self._stack = QStackedWidget()
+        self._control_panel = ControlPanelWidget(
+            on_launch_desktop=self._launch_live_desktop,
+            on_launch_server=self._launch_server,
+            on_launch_web=self._launch_web,
+            on_launch_platform=self._launch_platform,
+            on_launch_mobile=self._launch_mobile,
+            on_stop_all=self._stop_all,
+            on_open_live_web=self._open_live_web,
+            on_build_exe=self._build_exe,
+            on_run_tool=self._run_tool,
+        )
+        self._stack.addWidget(self._wrap_center(self._control_panel, wide=True))
         self._translator = HubTranslatorPanel()
         self._translator.set_status_callback(self._status.setText)
         self._stack.addWidget(self._wrap_center(self._translator))
         self._stack.addWidget(self._wrap_center(self._build_history_panel()))
+        self._stack.setCurrentIndex(VIEW_CONTROL)
         return self._stack
 
     @staticmethod
-    def _wrap_center(widget: QWidget) -> QWidget:
+    def _wrap_center(widget: QWidget, *, wide: bool = False) -> QWidget:
         wrapper = QWidget()
         layout = QHBoxLayout(wrapper)
-        layout.addStretch()
-        layout.addWidget(widget, stretch=0)
-        layout.addStretch()
+        if not wide:
+            layout.addStretch()
+        layout.addWidget(widget, stretch=1 if wide else 0)
+        if not wide:
+            layout.addStretch()
         return wrapper
 
     def _switch_view(self, view_index: int) -> None:
@@ -205,6 +228,8 @@ class SanctuaryHubWindow(QMainWindow):
             action.blockSignals(False)
         if view_index == VIEW_HISTORY:
             QTimer.singleShot(0, self._refresh_history)
+        if view_index == VIEW_CONTROL and self._control_panel is not None:
+            QTimer.singleShot(0, self._control_panel.refresh_diagnostics)
 
     def _build_history_panel(self) -> QFrame:
         panel = QFrame()
@@ -282,10 +307,14 @@ class SanctuaryHubWindow(QMainWindow):
             style.polish(self._badge_game)
 
         alive = sum(1 for proc in self._children if proc.poll() is None)
+        web_port = resolve_web_port()
         self._status.setText(
-            f"Web {'OK' if web_ok else 'off'} | API {'OK' if api_ok else 'off'} | "
-            f"Processus {alive} | Menu Diablo → Interface en direct"
+            f"Web {'OK' if web_ok else 'off'} (:{web_port}) | "
+            f"API {'OK' if api_ok else 'off'} | Processus {alive} | "
+            f"Contrôle → Plateforme API+Web"
         )
+        if self._control_panel is not None and self._current_view == VIEW_CONTROL:
+            self._control_panel.refresh_diagnostics()
 
     @staticmethod
     def _set_badge(label: QLabel, online: bool, online_text: str, offline_text: str) -> None:
@@ -400,15 +429,45 @@ class SanctuaryHubWindow(QMainWindow):
         self._status.setText("Mobile lancé")
 
     def _launch_platform(self) -> None:
-        server, web = run_platform()
-        self._track(server)
-        self._track(web)
-        self._status.setText("Plateforme API + Web lancée")
+        self._status.setText("Demarrage plateforme API + Web (patientez)…")
+        import threading
+
+        def task() -> None:
+            ok, message = launch_platform_orchestrated(
+                self._children,
+                on_spawn=lambda proc: QTimer.singleShot(0, lambda p=proc: self._track(p)),
+                open_browser=True,
+            )
+            QTimer.singleShot(0, lambda: self._on_platform_ready(ok, message))
+
+        threading.Thread(target=task, daemon=True).start()
+
+    def _on_platform_ready(self, ok: bool, message: str) -> None:
+        self._status.setText(message)
+        if ok:
+            self._sounds.play("success")
+        self._refresh_status()
+
+    def _build_exe(self) -> None:
+        script = PROJECT_ROOT / "Build-Pro.bat"
+        if not script.exists():
+            script = PROJECT_ROOT / "build" / "Build-Pro.bat"
+        if not script.exists():
+            QMessageBox.warning(self, "Build", "Build-Pro.bat introuvable.")
+            return
+        flags = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
+        proc = subprocess.Popen(
+            ["cmd", "/c", str(script)],
+            cwd=PROJECT_ROOT,
+            creationflags=flags,  # type: ignore[arg-type]
+        )
+        self._track(proc)
+        self._status.setText("Build exe lance — voir fenetre console")
 
     def _stop_all(self) -> None:
-        stopped = terminate_processes(self._children)
+        stopped = stop_all_services(self._children)
         self._sounds.play("success")
-        self._status.setText(f"{stopped} processus arrêté(s)")
+        self._status.setText(f"{stopped} service(s) arrete(s)")
         self._refresh_status()
 
     def _run_tool(self, command: str) -> None:
@@ -448,8 +507,11 @@ class SanctuaryHubWindow(QMainWindow):
 
 def run_hub() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("Diablo Translator Hub")
+    app.setApplicationName("Diablo Translator Control")
     app.setFont(QFont("Segoe UI", 10))
     window = SanctuaryHubWindow()
     window.show()
     return app.exec()
+
+
+run_control = run_hub

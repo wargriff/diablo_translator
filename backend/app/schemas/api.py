@@ -92,7 +92,7 @@ class StatsResponse(BaseModel):
     language: str
     translations_today: int = 0
     unique_sources: int = 0
-    api_version: str = "2.1.1"
+    api_version: str = "2.1.2"
 
 
 class LogsResponse(BaseModel):

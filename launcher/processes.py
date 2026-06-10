@@ -57,23 +57,23 @@ def open_web_browser(port: int = DEFAULT_WEB_PORT, path: str = "/") -> None:
     webbrowser.open(f"http://127.0.0.1:{port}{path}")
 
 
-def prepare_live_web(
+def launch_platform_orchestrated(
     children: list[subprocess.Popen[bytes]],
     *,
     on_spawn: Callable[[subprocess.Popen[bytes]], None] | None = None,
     web_port: int = DEFAULT_WEB_PORT,
+    open_browser: bool = False,
+    browser_path: str = "/",
 ) -> tuple[bool, str]:
-    """Démarre API + Web si nécessaire, puis ouvre /live."""
-    web_url = f"http://127.0.0.1:{web_port}"
-
+    """Demarre API puis Web dans l'ordre, avec attente de disponibilite."""
     if not probe_diablo_api(DEFAULT_API_PORT):
         proc = run_server()
         if on_spawn:
             on_spawn(proc)
         else:
             children.append(proc)
-        if not wait_for_api(timeout_sec=35):
-            return False, "API indisponible — pip install -r backend/requirements.txt puis relancez"
+        if not wait_for_api(timeout_sec=45):
+            return False, "API indisponible — pip install -r backend/requirements.txt"
 
     if not probe_web_home(web_port):
         proc = run_web(kill=True)
@@ -81,11 +81,46 @@ def prepare_live_web(
             on_spawn(proc)
         else:
             children.append(proc)
-        if not wait_for_web(web_port, timeout_sec=90):
-            return False, "Web indisponible — Node.js (C:\\src ou PATH) puis npm install dans web/"
+        if not wait_for_web(web_port, timeout_sec=120):
+            return False, "Web indisponible — Node.js (C:\\src) puis relancez Plateforme"
 
-    open_web_browser(web_port, "/live")
-    return True, f"Live web ouvert — {web_url}/live"
+    url = f"http://127.0.0.1:{web_port}{browser_path}"
+    if open_browser:
+        webbrowser.open(url)
+    return True, f"Plateforme OK — {url}"
+
+
+def prepare_live_web(
+    children: list[subprocess.Popen[bytes]],
+    *,
+    on_spawn: Callable[[subprocess.Popen[bytes]], None] | None = None,
+    web_port: int = DEFAULT_WEB_PORT,
+) -> tuple[bool, str]:
+    """Demarre API + Web si necessaire, puis ouvre /live."""
+    ok, message = launch_platform_orchestrated(
+        children,
+        on_spawn=on_spawn,
+        web_port=web_port,
+        open_browser=True,
+        browser_path="/live",
+    )
+    if ok:
+        return True, message.replace("Plateforme OK", "Live web ouvert")
+    return False, message
+
+
+def stop_all_services(children: list[subprocess.Popen[bytes]]) -> int:
+    from launcher.ports import kill_process_on_port
+
+    stopped = terminate_processes(children)
+    if probe_diablo_api(DEFAULT_API_PORT):
+        if kill_process_on_port(DEFAULT_API_PORT):
+            stopped += 1
+    for port in range(DEFAULT_WEB_PORT, DEFAULT_WEB_PORT + 10):
+        if probe_web_home(port, timeout=0.3):
+            if kill_process_on_port(port):
+                stopped += 1
+    return stopped
 
 
 def run_desktop() -> subprocess.Popen[bytes]:
@@ -107,7 +142,11 @@ def run_mobile() -> subprocess.Popen[bytes]:
     return _spawn(["mobile"])
 
 
-def run_platform() -> tuple[subprocess.Popen[bytes], subprocess.Popen[bytes]]:
+def run_platform(*, open_browser: bool = False) -> tuple[bool, str]:
+    return launch_platform_orchestrated([], open_browser=open_browser)
+
+
+def run_platform_processes() -> tuple[subprocess.Popen[bytes], subprocess.Popen[bytes]]:
     return run_server(), run_web(kill=True)
 
 

@@ -58,7 +58,9 @@ def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True) -> 
     print(f"Web companion : http://127.0.0.1:{port}")
     print("Arret : Ctrl+C")
     env = node_env()
-    command = [str(npm), "run", "dev", "--", "-p", str(port)]
+    env["API_PROXY_TARGET"] = f"http://127.0.0.1:8000"
+    env.pop("NEXT_PUBLIC_API_URL", None)
+    command = [str(npm), "run", "dev", "--", "-p", str(port), "-H", "127.0.0.1"]
 
     try:
         result = subprocess.run(command, cwd=WEB_DIR, env=env)

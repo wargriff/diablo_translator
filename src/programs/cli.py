@@ -125,8 +125,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("gui", help="Lancer l'interface graphique")
-    sub.add_parser("menu", help="Sanctuaire Hub — lanceur style web D4")
+    sub.add_parser("gui", help="Interface OCR en jeu (PyQt6)")
+    sub.add_parser(
+        "control",
+        help="Centre de contrôle — lance tous les services (defaut)",
+    )
+    sub.add_parser("menu", help="Alias du centre de controle")
+    sub.add_parser("hub", help="Alias du centre de controle")
     sub.add_parser("check", help="Vérifier les dépendances")
     sub.add_parser("verify", help="Vérification build exe (modules critiques)")
     sub.add_parser("preset", help="Aperçu preset/config avant build exe")
@@ -166,7 +171,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def dispatch(args: argparse.Namespace) -> int:
-    command = args.command or "gui"
+    command = args.command or "control"
 
     if command == "check":
         from src.programs.dependency_checker import print_dependency_report
@@ -213,10 +218,10 @@ def dispatch(args: argparse.Namespace) -> int:
 
         return run_mobile(device=args.device)
 
-    if command == "menu":
-        from launcher.hub import run_hub
+    if command in ("menu", "hub", "control"):
+        from launcher.control import run_control
 
-        return run_hub()
+        return run_control()
 
     if command == "gui":
         missing = []
