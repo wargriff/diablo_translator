@@ -4,6 +4,12 @@ Toutes les modifications notables de **Diablo Translator** sont documentées ici
 
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [2.1.3] — 2026-06-09
+
+### Corrigé
+
+- **Web seul** (`launcher_web.py`, `launcher.py web`) : démarre automatiquement l'API FastAPI sur :8000 avant Next.js (plus de `ECONNREFUSED` sur `/api/v1/*`).
+
 ## [2.1.2] — 2026-06-09
 
 ### Ajouté

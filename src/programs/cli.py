@@ -143,9 +143,14 @@ def build_parser() -> argparse.ArgumentParser:
     server.add_argument("--host", default=None, help="Hôte (défaut 0.0.0.0)")
     server.add_argument("--port", type=int, default=None, help="Port (défaut 8000)")
 
-    web = sub.add_parser("web", help="Lancer le companion web Next.js")
+    web = sub.add_parser("web", help="Lancer le companion web Next.js (+ API auto)")
     web.add_argument("--port", type=int, default=3000, help="Port (défaut 3000)")
     web.add_argument("--kill", action="store_true", help="Libérer le port si occupé")
+    web.add_argument(
+        "--no-api",
+        action="store_true",
+        help="Ne pas démarrer l'API automatiquement",
+    )
 
     mobile = sub.add_parser("mobile", help="Lancer l'app Flutter (Android / iOS)")
     mobile.add_argument("-d", "--device", default=None, help="ID appareil Flutter")
@@ -211,7 +216,7 @@ def dispatch(args: argparse.Namespace) -> int:
     if command == "web":
         from launcher.web import run_web
 
-        return run_web(port=args.port, kill=args.kill)
+        return run_web(port=args.port, kill=args.kill, ensure_api=not args.no_api)
 
     if command == "mobile":
         from launcher.mobile import run_mobile

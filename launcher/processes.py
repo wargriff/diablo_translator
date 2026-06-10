@@ -36,6 +36,39 @@ def wait_for_web(port: int = DEFAULT_WEB_PORT, *, timeout_sec: float = 90, inter
     return False
 
 
+def ensure_api_running(
+    *,
+    spawn_if_missing: bool = True,
+    on_spawn: Callable[[subprocess.Popen[bytes]], None] | None = None,
+    children: list[subprocess.Popen[bytes]] | None = None,
+) -> tuple[bool, str]:
+    """Verifie que l'API Diablo ecoute sur :8000; la demarre si besoin."""
+    if probe_diablo_api(DEFAULT_API_PORT):
+        return True, f"API active — http://127.0.0.1:{DEFAULT_API_PORT}"
+
+    try:
+        import uvicorn  # noqa: F401
+    except ImportError:
+        return False, "Installez l'API : pip install -r backend/requirements.txt"
+
+    if not spawn_if_missing:
+        return False, "API arretee — lancez launcher.py server dans un autre terminal"
+
+    print("Demarrage API FastAPI (:8000)...")
+    proc = run_server()
+    if on_spawn:
+        on_spawn(proc)
+    elif children is not None:
+        children.append(proc)
+    if not wait_for_api(timeout_sec=45):
+        return (
+            False,
+            "API indisponible — verifiez la fenetre console « server » "
+            "ou : pip install -r backend/requirements.txt",
+        )
+    return True, f"API demarree — http://127.0.0.1:{DEFAULT_API_PORT}"
+
+
 def _launcher_command(args: list[str]) -> list[str]:
     if getattr(sys, "frozen", False):
         return [PYTHON, *args]
@@ -66,14 +99,11 @@ def launch_platform_orchestrated(
     browser_path: str = "/",
 ) -> tuple[bool, str]:
     """Demarre API puis Web dans l'ordre, avec attente de disponibilite."""
-    if not probe_diablo_api(DEFAULT_API_PORT):
-        proc = run_server()
-        if on_spawn:
-            on_spawn(proc)
-        else:
-            children.append(proc)
-        if not wait_for_api(timeout_sec=45):
-            return False, "API indisponible — pip install -r backend/requirements.txt"
+    ok, message = ensure_api_running(on_spawn=on_spawn, children=children)
+    if not ok:
+        return False, message
+    if message.startswith("API demarree"):
+        print(message)
 
     if not probe_web_home(web_port):
         proc = run_web(kill=True)

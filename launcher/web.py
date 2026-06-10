@@ -25,7 +25,7 @@ def _ensure_node_modules(npm: Path) -> bool:
     return True
 
 
-def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True) -> int:
+def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True, ensure_api: bool = True) -> int:
     if not WEB_DIR.exists():
         print(f"Dossier web introuvable : {WEB_DIR}")
         return 1
@@ -34,6 +34,15 @@ def run_web(*, port: int = 3000, kill: bool = False, auto_port: bool = True) -> 
     if not package_json.exists():
         print("web/package.json manquant — restaurez les sources Next.js du projet.")
         return 1
+
+    if ensure_api:
+        from launcher.processes import ensure_api_running
+
+        ok, message = ensure_api_running()
+        if not ok:
+            print(message)
+            return 1
+        print(message)
 
     from launcher.nodejs import find_npm, node_env, npm_hint
 

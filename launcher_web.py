@@ -1,4 +1,4 @@
-"""Raccourci web — délègue à launcher.py web."""
+"""Raccourci web — demarre l'API (:8000) puis le companion Next.js."""
 
 from __future__ import annotations
 
