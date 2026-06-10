@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from launcher.api_probe import probe_web_home
 from launcher.diagnostics import collect_diagnostics
 from launcher.service_ports import api_base_url, resolve_web_port, web_base_url
 
@@ -44,6 +45,7 @@ class ControlPanelWidget(QWidget):
             "mobile": on_launch_mobile,
             "stop": on_stop_all,
             "live": on_open_live_web,
+            "web_home": self._open_web_home,
             "build": on_build_exe,
         }
         self._on_run_tool = on_run_tool
@@ -58,7 +60,7 @@ class ControlPanelWidget(QWidget):
         root.addWidget(self._section("Applications"))
         root.addLayout(self._row(
             ("Interface OCR (jeu)", "desktop", "HubPrimaryPill"),
-            ("Ouvrir le web", "live", "HubPillButton"),
+            ("Live web (/live)", "live", "HubPillButton"),
         ))
 
         root.addWidget(self._section("Services"))
@@ -69,6 +71,7 @@ class ControlPanelWidget(QWidget):
         ))
         root.addLayout(self._row(
             ("Mobile Flutter", "mobile", "HubPillButton"),
+            ("Accueil web", "web_home", "HubPillButton"),
             ("Arreter tout", "stop", "HubPillButton"),
         ))
 
@@ -134,6 +137,13 @@ class ControlPanelWidget(QWidget):
             row.setWordWrap(True)
             self._diag_layout.addWidget(row)
             self._diag_labels.append(row)
+
+    def _open_web_home(self) -> None:
+        port = resolve_web_port()
+        if probe_web_home(port):
+            webbrowser.open(f"{web_base_url(port)}/")
+            return
+        self._callbacks["platform"]()
 
     def open_web_home(self) -> None:
         port = resolve_web_port()

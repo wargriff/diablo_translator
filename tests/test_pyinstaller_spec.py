@@ -10,7 +10,8 @@ class PyInstallerSpecTests(unittest.TestCase):
         content = spec_path.read_text(encoding="utf-8")
 
         self.assertNotIn("dependency_injector", content)
-        self.assertIn("src.infrastructure.container", content)
+        self.assertIn('collect_submodules("src")', content)
+        self.assertIn("src.bootstrap.app", content)
 
 
 if __name__ == "__main__":

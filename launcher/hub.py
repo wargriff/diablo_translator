@@ -417,16 +417,28 @@ class SanctuaryHubWindow(QMainWindow):
         self._refresh_status()
 
     def _launch_server(self) -> None:
-        self._track(run_server())
-        self._status.setText("API lancée (:8000)")
+        try:
+            self._track(run_server())
+        except RuntimeError as exc:
+            self._status.setText(str(exc))
+            return
+        self._status.setText("API lancee (:8000) — attente demarrage…")
 
     def _launch_web(self) -> None:
-        self._track(run_web(kill=True))
-        self._status.setText("Web lancé (:3000)")
+        try:
+            self._track(run_web(kill=True))
+        except RuntimeError as exc:
+            self._status.setText(str(exc))
+            return
+        self._status.setText("Web lance (:3000)")
 
     def _launch_mobile(self) -> None:
-        self._track(run_mobile())
-        self._status.setText("Mobile lancé")
+        try:
+            self._track(run_mobile())
+        except RuntimeError as exc:
+            self._status.setText(str(exc))
+            return
+        self._status.setText("Mobile lance")
 
     def _launch_platform(self) -> None:
         self._status.setText("Demarrage plateforme API + Web (patientez)…")

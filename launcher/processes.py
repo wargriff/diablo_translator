@@ -5,6 +5,7 @@ import sys
 import time
 import webbrowser
 from collections.abc import Callable
+from pathlib import Path
 
 from launcher.api_probe import (
     DEFAULT_API_PORT,
@@ -16,6 +17,52 @@ from src.infrastructure.paths import PROJECT_ROOT
 PYTHON = sys.executable
 LAUNCHER = PROJECT_ROOT / "launcher.py"
 DEFAULT_WEB_PORT = 3000
+
+_SUBCOMMANDS_NEEDING_DEV_PYTHON = frozenset(
+    {"server", "web", "mobile", "check", "test", "game", "stats", "export", "translate"}
+)
+
+
+def _find_launcher_script() -> Path | None:
+    if LAUNCHER.is_file():
+        return LAUNCHER
+    for root in (PROJECT_ROOT, PROJECT_ROOT.parent, PROJECT_ROOT.parent.parent):
+        candidate = root / "launcher.py"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _find_dev_python() -> Path | None:
+    for root in (PROJECT_ROOT, PROJECT_ROOT.parent, PROJECT_ROOT.parent.parent):
+        candidate = root.parent / ".venv" / "Scripts" / "python.exe"
+        if candidate.is_file():
+            return candidate
+        candidate = root / ".venv" / "Scripts" / "python.exe"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _launcher_command(args: list[str]) -> list[str]:
+    subcommand = args[0] if args else ""
+    needs_dev = subcommand in _SUBCOMMANDS_NEEDING_DEV_PYTHON
+
+    if getattr(sys, "frozen", False) and needs_dev:
+        dev_python = _find_dev_python()
+        launcher_script = _find_launcher_script()
+        if dev_python and launcher_script:
+            return [str(dev_python), str(launcher_script), *args]
+        raise RuntimeError(
+            "API / web / mobile necessitent Python et les sources du projet "
+            "(non inclus dans l'exe bureau). "
+            "Utilisez Lancer.bat ou : python launcher.py "
+            + subcommand
+        )
+
+    if getattr(sys, "frozen", False):
+        return [PYTHON, *args]
+    return [PYTHON, str(LAUNCHER), *args]
 
 
 def wait_for_api(*, timeout_sec: float = 60, interval: float = 0.5) -> bool:
@@ -69,18 +116,17 @@ def ensure_api_running(
     return True, f"API demarree — http://127.0.0.1:{DEFAULT_API_PORT}"
 
 
-def _launcher_command(args: list[str]) -> list[str]:
-    if getattr(sys, "frozen", False):
-        return [PYTHON, *args]
-    return [PYTHON, str(LAUNCHER), *args]
-
-
 def _spawn(args: list[str], *, new_console: bool = True) -> subprocess.Popen[bytes]:
+    try:
+        command = _launcher_command(args)
+    except RuntimeError as exc:
+        print(exc)
+        raise
     creationflags = 0
     if sys.platform == "win32" and new_console:
         creationflags = subprocess.CREATE_NEW_CONSOLE  # type: ignore[attr-defined]
     return subprocess.Popen(
-        _launcher_command(args),
+        command,
         cwd=PROJECT_ROOT,
         creationflags=creationflags,
     )
@@ -174,10 +220,6 @@ def run_mobile() -> subprocess.Popen[bytes]:
 
 def run_platform(*, open_browser: bool = False) -> tuple[bool, str]:
     return launch_platform_orchestrated([], open_browser=open_browser)
-
-
-def run_platform_processes() -> tuple[subprocess.Popen[bytes], subprocess.Popen[bytes]]:
-    return run_server(), run_web(kill=True)
 
 
 def run_cli_tool(command: str) -> int:
