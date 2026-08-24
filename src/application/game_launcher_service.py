@@ -6,6 +6,7 @@ from pathlib import Path
 
 from src.application.config_service import ConfigService
 from src.game_detection import SUPPORTED_GAMES
+from src.game_detection.game_detection_service import GameDetectionService
 from src.infrastructure.config_manager import ConfigManager
 
 _GAME_KEYS = {game.key for game in SUPPORTED_GAMES}
@@ -13,8 +14,13 @@ _GAME_KEYS = {game.key for game in SUPPORTED_GAMES}
 
 class GameLauncherService:
 
-    def __init__(self, config_service: ConfigService) -> None:
+    def __init__(
+        self,
+        config_service: ConfigService,
+        game_detection: GameDetectionService | None = None,
+    ) -> None:
         self._config_service = config_service
+        self._game_detection = game_detection
 
     def resolve_path(self, game_key: str) -> str:
         config = self._config_service.config
@@ -41,11 +47,9 @@ class GameLauncherService:
         ConfigManager.save(updated)
 
     def game_status(self, game_key: str) -> dict[str, str | bool]:
-        from src.game_detection import GameDetectionService
-
         path = self.resolve_path(game_key)
         valid, error = self.validate_path(game_key, path) if path else (False, "")
-        detection = GameDetectionService().scan()
+        detection = (self._game_detection or GameDetectionService()).scan()
         running = game_key in detection.active_processes
 
         return {
@@ -98,6 +102,7 @@ class GameLauncherService:
     def set_preferred_game(self, game_key: str) -> None:
         if game_key not in _GAME_KEYS:
             return
+        config = self._config_service.config
         updated = replace(config, preferred_launch_game=game_key)
         self._config_service.replace(updated)
         ConfigManager.save(updated)

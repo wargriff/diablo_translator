@@ -137,6 +137,7 @@ class ApplicationContainer:
         if self._game_launcher_service is None:
             self._game_launcher_service = GameLauncherService(
                 config_service=self.config_service(),
+                game_detection=self.game_detection_service(),
             )
         return self._game_launcher_service
 

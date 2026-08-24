@@ -234,19 +234,18 @@ class GameplayWidget(QWidget):
             )
 
     def _setup_shortcuts(self) -> None:
-        # Raccourcis actifs seulement hors champs de saisie (WidgetShortcut).
         translate_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
-        translate_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
+        translate_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         translate_shortcut.activated.connect(self.translate_chat_message)
         self._shortcuts.append(translate_shortcut)
 
         voice_shortcut = QShortcut(QKeySequence("Ctrl+Shift+M"), self)
-        voice_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
+        voice_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         voice_shortcut.activated.connect(self.toggle_voice_input)
         self._shortcuts.append(voice_shortcut)
 
         refresh_shortcut = QShortcut(QKeySequence("Ctrl+Shift+R"), self)
-        refresh_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
+        refresh_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         refresh_shortcut.activated.connect(self.refresh_game_status)
         self._shortcuts.append(refresh_shortcut)
 

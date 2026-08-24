@@ -60,6 +60,11 @@ class TranslationWorker:
 
     def stop(self) -> None:
         self._stop_event.set()
+        thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2.0)
+        if thread is None or not thread.is_alive():
+            self._thread = None
 
     def _run(self) -> None:
         ocr_prewarmed = False

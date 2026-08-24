@@ -50,6 +50,8 @@ class SpeechInputService:
     def start(self) -> bool:
         if self.is_listening:
             return True
+        if self._thread is not None and self._thread.is_alive():
+            return False
 
         # #region agent log
         agent_log(
@@ -93,9 +95,17 @@ class SpeechInputService:
 
     def stop(self) -> None:
         self._stop_event.set()
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=1.5)
-        self._thread = None
+        try:
+            import sounddevice as sd
+
+            sd.stop()
+        except Exception:
+            pass
+        thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2.0)
+        if thread is None or not thread.is_alive():
+            self._thread = None
 
     def _listen_loop(self) -> None:
         import sounddevice as sd
@@ -171,16 +181,34 @@ class SpeechInputService:
 
 class SpeechOutputService:
 
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+
     def speak(self, text: str) -> None:
         cleaned = text.strip()
         if not cleaned:
             return
 
+        thread = threading.Thread(
+            target=self._speak_sync,
+            args=(cleaned,),
+            daemon=True,
+            name="SpeechOutput",
+        )
+        self._thread = thread
+        thread.start()
+
+    def _speak_sync(self, text: str) -> None:
         try:
             import pyttsx3
         except ModuleNotFoundError:
             return
 
-        engine = pyttsx3.init()
-        engine.say(cleaned)
-        engine.runAndWait()
+        with self._lock:
+            try:
+                engine = pyttsx3.init()
+                engine.say(text)
+                engine.runAndWait()
+            except Exception:
+                return
