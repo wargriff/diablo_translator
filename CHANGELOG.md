@@ -4,6 +4,16 @@ Toutes les modifications notables de **Diablo Translator** sont documentées ici
 
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [Unreleased]
+
+### Corrigé
+
+- **Launcher** : `GameLauncherService.set_preferred_game` plantait (`NameError: config`) au clic Favori.
+- **Réglages** : `ConfigManager.save` perdait `_migration_version` — chaque relance réappliquait les migrations (overlay compact, Google, FPS…).
+- **Réglages** : `build_config()` écrasait traducteur, géométrie overlay, DeepL et options hors formulaire.
+- **Launcher** : le bouton hero n’émettait pas `launch_requested` (polling OCR lent après lancement).
+- **Voix** : `pyttsx3.runAndWait()` bloquait le thread UI ; `stop()` n’interrompait pas `sd.rec` (4 s).
+
 ## [2.1.3] — 2026-06-09
 
 ### Corrigé

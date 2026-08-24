@@ -74,6 +74,30 @@ class GameLauncherServiceTests(unittest.TestCase):
         finally:
             path.unlink(missing_ok=True)
 
+    def test_set_preferred_game_updates_config(self) -> None:
+        service = self._service(preferred_launch_game="d4")
+        with patch("src.application.game_launcher_service.ConfigManager.save"):
+            service.set_preferred_game("d3")
+
+        self.assertEqual(service.preferred_game_key(), "d3")
+
+    def test_set_preferred_game_ignores_unknown_key(self) -> None:
+        service = self._service(preferred_launch_game="d4")
+        service.set_preferred_game("unknown")
+        self.assertEqual(service.preferred_game_key(), "d4")
+
+    def test_game_status_reuses_injected_detection(self) -> None:
+        detection = MagicMock()
+        detection.scan.return_value.active_processes = {"d4": "Diablo IV.exe"}
+        service = self._service(d4_exe_path="")
+        service._game_detection = detection
+
+        info = service.game_status("d4")
+
+        self.assertTrue(info["running"])
+        self.assertEqual(info["process"], "Diablo IV.exe")
+        detection.scan.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
