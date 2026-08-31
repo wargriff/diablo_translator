@@ -93,6 +93,12 @@ class SpeechInputService:
 
     def stop(self) -> None:
         self._stop_event.set()
+        try:
+            import sounddevice as sd
+
+            sd.stop()
+        except Exception:
+            pass
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1.5)
         self._thread = None
@@ -171,16 +177,35 @@ class SpeechInputService:
 
 class SpeechOutputService:
 
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+
     def speak(self, text: str) -> None:
         cleaned = text.strip()
         if not cleaned:
             return
 
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                return
+            self._thread = threading.Thread(
+                target=self._speak_sync,
+                args=(cleaned,),
+                daemon=True,
+                name="SpeechOutput",
+            )
+            self._thread.start()
+
+    def _speak_sync(self, text: str) -> None:
         try:
             import pyttsx3
         except ModuleNotFoundError:
             return
 
-        engine = pyttsx3.init()
-        engine.say(cleaned)
-        engine.runAndWait()
+        try:
+            engine = pyttsx3.init()
+            engine.say(text)
+            engine.runAndWait()
+        except Exception:
+            return

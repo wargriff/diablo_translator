@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from src.application.in_game_chat_router import InGameChatRouter
 from src.application.player_identity_service import PlayerIdentityService
@@ -29,6 +30,14 @@ class InGameChatRouterTests(unittest.TestCase):
 
     def setUp(self):
         self.config = AppConfig(player_name="Wargriff", language="fr")
+        patcher = patch(
+            "src.translation.providers.google_provider.GoogleTranslatorProvider.translate",
+            side_effect=lambda text, source_language=None, target_language="fr": (
+                f"{text} [{target_language}]"
+            ),
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.pipeline = TranslationPipeline(self.config, ConversationContext())
         self.identity = PlayerIdentityService()
         self.router = InGameChatRouter(self.pipeline, self.identity)

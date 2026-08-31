@@ -3,6 +3,8 @@ from dataclasses import asdict, dataclass
 
 from src.infrastructure.paths import USER_DATA_DIR
 
+CURRENT_MIGRATION_VERSION = 11
+
 
 @dataclass(slots=True)
 class AppConfig:
@@ -161,23 +163,20 @@ class ConfigManager:
             migrated = True
 
         if migrated:
-            with open(cls.CONFIG_PATH, "w", encoding="utf-8") as file:
-                json.dump(
-                    {**asdict(config), "_migration_version": version},
-                    file,
-                    indent=4,
-                    ensure_ascii=False,
-                )
+            cls._write(config, version)
 
         return config
 
     @classmethod
     def save(cls, config: AppConfig) -> None:
-        cls.CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        cls._write(config, CURRENT_MIGRATION_VERSION)
 
+    @classmethod
+    def _write(cls, config: AppConfig, version: int) -> None:
+        cls.CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(cls.CONFIG_PATH, "w", encoding="utf-8") as file:
             json.dump(
-                asdict(config),
+                {**asdict(config), "_migration_version": version},
                 file,
                 indent=4,
                 ensure_ascii=False,

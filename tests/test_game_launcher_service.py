@@ -15,7 +15,7 @@ class GameLauncherServiceTests(unittest.TestCase):
     def _service(self, **overrides) -> GameLauncherService:
         config = AppConfig(**overrides)
         config_service = ConfigService()
-        config_service.replace(config)
+        config_service.replace(config, persist=False)
         return GameLauncherService(config_service)
 
     def test_validate_path_rejects_missing_config(self) -> None:
@@ -55,6 +55,16 @@ class GameLauncherServiceTests(unittest.TestCase):
             self.assertIn("Diablo IV", message)
         finally:
             path.unlink(missing_ok=True)
+
+    def test_set_preferred_game_persists_key(self) -> None:
+        service = self._service(preferred_launch_game="d4")
+        with patch("src.infrastructure.config_manager.ConfigManager.save") as save:
+            service.set_preferred_game("d3")
+
+        self.assertEqual(service.preferred_game_key(), "d3")
+        save.assert_called_once()
+        saved = save.call_args[0][0]
+        self.assertEqual(saved.preferred_launch_game, "d3")
 
     def test_launch_preferred_uses_config(self) -> None:
         with tempfile.NamedTemporaryFile(suffix=".exe", delete=False) as handle:

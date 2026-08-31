@@ -18,6 +18,7 @@ class DiabloTabWidget(QTabWidget):
         tab_bar.setIconSize(QSize(22, 22))
 
     def add_icon_tab(self, widget: QWidget, icon_name: str, tooltip: str) -> int:
-        index = self.addTab(widget, AssetManager.icon(icon_name), "")
+        label = tooltip.split(" — ", 1)[0].split(" - ", 1)[0]
+        index = self.addTab(widget, AssetManager.icon(icon_name), label)
         self.setTabToolTip(index, tooltip)
         return index

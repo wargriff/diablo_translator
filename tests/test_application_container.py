@@ -24,7 +24,10 @@ class ApplicationContainerTests(unittest.TestCase):
         container.shutdown_resources()
 
     def test_container_facade_boots_and_shuts_down(self) -> None:
-        from PyQt6.QtWidgets import QApplication
+        try:
+            from PyQt6.QtWidgets import QApplication
+        except ImportError:
+            self.skipTest("PyQt6 / libEGL indisponible sur cet hôte")
 
         app = QApplication.instance() or QApplication([])
         from src.infrastructure.container import Container
