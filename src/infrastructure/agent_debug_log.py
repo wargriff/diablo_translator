@@ -15,6 +15,7 @@ LOG_PATH = PROJECT_ROOT / "debug-c786be.log"
 LOG_MIRROR_PATH = LOGS_DIR / "debug-c786be.log"
 LOG_FALLBACK_PATH = Path(os.environ.get("TEMP", os.environ.get("TMP", "."))) / "diablo_translator_debug_c786be.log"
 LOG_HOME_PATH = Path.home() / "DiabloTranslator" / "debug-c786be.log"
+_ENABLED = os.environ.get("DT_AGENT_DEBUG", "").strip().lower() in {"1", "true", "yes"}
 _lock = threading.Lock()
 _listeners: list = []
 
@@ -38,6 +39,9 @@ def agent_log(
     data: dict[str, Any] | None = None,
     run_id: str = "pre-fix",
 ) -> None:
+    if not _ENABLED:
+        return
+
     payload = {
         "sessionId": SESSION_ID,
         "runId": run_id,

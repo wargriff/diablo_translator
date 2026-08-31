@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -146,6 +146,11 @@ class SettingsFormWidget(QWidget):
     def _build_translation_page(self) -> QWidget:
         form = QFormLayout()
         form.addRow("Langue maison", self.language)
+        form.addRow("Moteur de traduction", self.translator)
+        form.addRow("Clé API DeepL", self.deepl_api_key)
+        form.addRow("Entrée micro", self.voice_input_enabled)
+        form.addRow("Lire les traductions (TTS)", self.speak_translation)
+        form.addRow("Langue du micro", self.voice_language)
         form.addRow("Traduction bidirectionnelle", self.bidirectional_mode)
         form.addRow("Langue de réponse par défaut", self.default_reply_language)
         form.addRow("Détection automatique des langues", self.auto_detect_language)
@@ -259,6 +264,22 @@ class SettingsFormWidget(QWidget):
         self.language.addItems(["fr", "en", "de", "es"])
         self.language.currentTextChanged.connect(self._on_field_changed)
 
+        self.translator = QComboBox()
+        self.translator.addItem("Google", "google")
+        self.translator.addItem("DeepL", "deepl")
+        self.deepl_api_key = QLineEdit()
+        self.deepl_api_key.setPlaceholderText("DEEPL_API_KEY (optionnel)")
+        self.deepl_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.voice_input_enabled = QCheckBox()
+        self.speak_translation = QCheckBox()
+        self.voice_language = QComboBox()
+        self.voice_language.addItem("Auto", "auto")
+        self.voice_language.addItem("Français (fr-FR)", "fr-FR")
+        self.voice_language.addItem("English (en-US)", "en-US")
+        self.voice_language.addItem("Deutsch (de-DE)", "de-DE")
+        self.voice_language.addItem("Español (es-ES)", "es-ES")
+        self.voice_language.addItem("Italiano (it-IT)", "it-IT")
+
         self.bidirectional_mode = QCheckBox()
         self.default_reply_language = QComboBox()
         self.default_reply_language.addItems(["en", "de", "es", "it", "pt", "ru", "pl"])
@@ -329,6 +350,11 @@ class SettingsFormWidget(QWidget):
     def _wire_change_signals(self) -> None:
         widgets = (
             self.language,
+            self.translator,
+            self.deepl_api_key,
+            self.voice_input_enabled,
+            self.speak_translation,
+            self.voice_language,
             self.bidirectional_mode,
             self.default_reply_language,
             self.auto_detect_language,
@@ -380,6 +406,11 @@ class SettingsFormWidget(QWidget):
     def _sync_fields_from_config(self) -> None:
         config = self._config
         self.language.setCurrentText(config.language)
+        self._set_combo_data(self.translator, config.translator)
+        self.deepl_api_key.setText(config.deepl_api_key)
+        self.voice_input_enabled.setChecked(config.voice_input_enabled)
+        self.speak_translation.setChecked(config.speak_translation)
+        self._set_combo_data(self.voice_language, config.voice_language)
         self.bidirectional_mode.setChecked(config.bidirectional_mode)
         self.default_reply_language.setCurrentText(config.default_reply_language)
         self.auto_detect_language.setChecked(config.auto_detect_language)
@@ -425,39 +456,33 @@ class SettingsFormWidget(QWidget):
         self.summary_label.setText(
             f"Profil : {self.resolution_profile.currentText()} · "
             f"Zone {self.chat_region.currentText()} · "
+            f"Moteur : {self.translator.currentText()} · "
             f"Joueur : {player} · "
             f"Launch : {self.preferred_launch_game.currentText()}"
         )
 
     def build_config(self) -> AppConfig:
-        return AppConfig(
+        return replace(
+            self._config,
             language=self.language.currentText(),
-            overlay_enabled=True,
             overlay_opacity=self.overlay_opacity.value(),
             overlay_compact=self.overlay_compact.isChecked(),
-            overlay_position="bottom_left",
             overlay_width=self.overlay_width.value(),
             overlay_height=self.overlay_height.value(),
-            overlay_margin=8,
             overlay_borderless=not self.overlay_native_frame.isChecked(),
             overlay_remember_position=self.overlay_remember_position.isChecked(),
             overlay_click_through=self.overlay_click_through.isChecked(),
-            overlay_above_chat=True,
             always_on_top=self.always_on_top.isChecked(),
-            show_only_gameplay_tab=True,
-            auto_raise_on_game=False,
             auto_start_monitor=self.auto_start_monitor.isChecked(),
             capture_fps=self.capture_fps.value(),
-            translator="google",
-            deepl_api_key=self._config.deepl_api_key,
-            ocr_engine="easyocr",
-            ocr_languages="en,fr,de,es,it,pt,ru,pl",
+            translator=self.translator.currentData() or self._config.translator,
+            deepl_api_key=self.deepl_api_key.text().strip(),
             ocr_confidence_min=self.ocr_confidence_min.value(),
             ocr_preprocess=self.ocr_preprocess.isChecked(),
             capture_from_game_window=self.capture_from_game_window.isChecked(),
             capture_fullscreen_monitor=self.capture_fullscreen_monitor.isChecked(),
-            display_mode=self.display_mode.currentData(),
-            resolution_profile=self.resolution_profile.currentData(),
+            display_mode=self.display_mode.currentData() or self._config.display_mode,
+            resolution_profile=self.resolution_profile.currentData() or self._config.resolution_profile,
             ingame_only_mode=self.ingame_only_mode.isChecked(),
             player_name=self.player_name.text().strip(),
             auto_detect_player=self.auto_detect_player.isChecked(),
@@ -470,18 +495,16 @@ class SettingsFormWidget(QWidget):
             bidirectional_mode=self.bidirectional_mode.isChecked(),
             default_reply_language=self.default_reply_language.currentText(),
             preserve_mixed_language=self.preserve_mixed_language.isChecked(),
-            chat_monitor_enabled=True,
-            chat_region_preset=self.chat_region.currentData(),
-            voice_input_enabled=self._config.voice_input_enabled,
-            speak_translation=self._config.speak_translation,
-            voice_language=self._config.voice_language,
-            ui_font_size=self._config.ui_font_size,
-            cache_max_entries=self._config.cache_max_entries,
-            min_text_length=self._config.min_text_length,
+            chat_region_preset=self.chat_region.currentData() or self._config.chat_region_preset,
+            voice_input_enabled=self.voice_input_enabled.isChecked(),
+            speak_translation=self.speak_translation.isChecked(),
+            voice_language=self.voice_language.currentData() or self._config.voice_language,
             d3_exe_path=self.d3_exe_path.text().strip(),
             d4_exe_path=self.d4_exe_path.text().strip(),
             immortal_exe_path=self.immortal_exe_path.text().strip(),
-            preferred_launch_game=self.preferred_launch_game.currentData(),
+            preferred_launch_game=(
+                self.preferred_launch_game.currentData() or self._config.preferred_launch_game
+            ),
         )
 
     def load_config(self, config: AppConfig) -> None:

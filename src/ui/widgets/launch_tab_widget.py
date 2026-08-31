@@ -163,10 +163,7 @@ class LaunchTabWidget(QWidget):
         )
 
     def _launch_preferred(self) -> None:
-        ok, message = self.container.game_launcher.launch_preferred()
-        self._report_launch(message, ok=ok)
-        if ok:
-            self.refresh_requested.emit()
+        self._launch(self.container.game_launcher.preferred_game_key())
 
     def _launch(self, game_key: str) -> None:
         ok, message = self.container.game_launcher.launch(game_key)

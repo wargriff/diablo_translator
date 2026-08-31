@@ -119,12 +119,11 @@ QTabWidget#DiabloIconTabWidget::pane {
 
 QTabWidget#DiabloIconTabWidget QTabBar::tab {
     background: #151210;
+    color: #8a8278;
     border: 1px solid #2a241c;
-    min-width: 44px;
-    max-width: 44px;
-    min-height: 44px;
-    max-height: 44px;
-    padding: 8px;
+    min-width: 72px;
+    min-height: 36px;
+    padding: 8px 12px;
     margin-right: 3px;
 }
 

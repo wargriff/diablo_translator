@@ -44,21 +44,28 @@ class DisplayService:
 
     @classmethod
     def list_monitors(cls) -> tuple[MonitorInfo, ...]:
-        import mss
+        try:
+            import mss
+        except ModuleNotFoundError:
+            return ()
 
-        monitors: list[MonitorInfo] = []
-        with mss.mss() as screen:
-            for index, monitor in enumerate(screen.monitors[1:], start=1):
-                monitors.append(
-                    MonitorInfo(
-                        index=index,
-                        left=monitor["left"],
-                        top=monitor["top"],
-                        width=monitor["width"],
-                        height=monitor["height"],
+        try:
+            monitors: list[MonitorInfo] = []
+            mss_factory = getattr(mss, "MSS", mss.mss)
+            with mss_factory() as screen:
+                for index, monitor in enumerate(screen.monitors[1:], start=1):
+                    monitors.append(
+                        MonitorInfo(
+                            index=index,
+                            left=monitor["left"],
+                            top=monitor["top"],
+                            width=monitor["width"],
+                            height=monitor["height"],
+                        )
                     )
-                )
-        return tuple(monitors)
+            return tuple(monitors)
+        except Exception:
+            return ()
 
     @classmethod
     def primary_monitor(cls) -> MonitorInfo:
@@ -71,11 +78,14 @@ class DisplayService:
         if not monitors:
             return cls.primary_monitor()
 
-        user32 = ctypes.windll.user32
-        monitor_handle = user32.MonitorFromPoint(
-            wintypes.POINT(x, y),
-            2,  # MONITOR_DEFAULTTONEAREST
-        )
+        try:
+            user32 = ctypes.windll.user32
+            monitor_handle = user32.MonitorFromPoint(
+                wintypes.POINT(x, y),
+                2,  # MONITOR_DEFAULTTONEAREST
+            )
+        except (AttributeError, OSError, ValueError):
+            monitor_handle = None
         if monitor_handle:
             class MONITORINFO(ctypes.Structure):
                 _fields_ = [

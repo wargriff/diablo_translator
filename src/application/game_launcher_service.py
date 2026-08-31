@@ -6,7 +6,6 @@ from pathlib import Path
 
 from src.application.config_service import ConfigService
 from src.game_detection import SUPPORTED_GAMES
-from src.infrastructure.config_manager import ConfigManager
 
 _GAME_KEYS = {game.key for game in SUPPORTED_GAMES}
 
@@ -38,7 +37,6 @@ class GameLauncherService:
             raise ValueError(f"Jeu inconnu : {game_key}")
 
         self._config_service.replace(updated)
-        ConfigManager.save(updated)
 
     def game_status(self, game_key: str) -> dict[str, str | bool]:
         from src.game_detection import GameDetectionService
@@ -98,9 +96,11 @@ class GameLauncherService:
     def set_preferred_game(self, game_key: str) -> None:
         if game_key not in _GAME_KEYS:
             return
-        updated = replace(config, preferred_launch_game=game_key)
+        updated = replace(
+            self._config_service.config,
+            preferred_launch_game=game_key,
+        )
         self._config_service.replace(updated)
-        ConfigManager.save(updated)
 
     def launch_preferred(self) -> tuple[bool, str]:
         return self.launch(self.preferred_game_key())
