@@ -168,7 +168,7 @@ class WindowBehaviorService:
         for index in range(tabs.count()):
             visible = True
             if config.overlay_compact and config.show_only_gameplay_tab:
-                visible = tabs.tabText(index).lower() == "gameplay"
+                visible = WindowBehaviorService._is_gameplay_tab(tabs, index)
             tabs.setTabVisible(index, visible)
 
         if config.overlay_compact and config.show_only_gameplay_tab:
@@ -176,11 +176,18 @@ class WindowBehaviorService:
                 (
                     index
                     for index in range(tabs.count())
-                    if tabs.tabText(index).lower() == "gameplay"
+                    if WindowBehaviorService._is_gameplay_tab(tabs, index)
                 ),
                 0,
             )
             tabs.setCurrentIndex(gameplay_index)
+
+    @staticmethod
+    def _is_gameplay_tab(tabs: QTabWidget, index: int) -> bool:
+        widget = tabs.widget(index)
+        object_name = widget.objectName() if widget is not None else ""
+        label = tabs.tabText(index).casefold()
+        return object_name == "GameplayRoot" or label in {"gameplay", "ocr"}
 
     @staticmethod
     def _apply_click_through(window: QMainWindow, config: AppConfig) -> None:

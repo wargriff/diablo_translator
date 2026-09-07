@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from src.application.in_game_chat_router import InGameChatRouter
 from src.application.player_identity_service import PlayerIdentityService
@@ -32,6 +33,12 @@ class InGameChatRouterTests(unittest.TestCase):
         self.pipeline = TranslationPipeline(self.config, ConversationContext())
         self.identity = PlayerIdentityService()
         self.router = InGameChatRouter(self.pipeline, self.identity)
+        self._translate_patch = patch(
+            "src.translation.providers.google_provider.GoogleTranslatorProvider.translate",
+            side_effect=lambda text, **kwargs: f"TR:{text}",
+        )
+        self._translate_patch.start()
+        self.addCleanup(self._translate_patch.stop)
 
     def test_local_player_message_is_outgoing(self):
         message = ChatMessageParser.parse(
