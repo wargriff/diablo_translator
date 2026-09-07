@@ -38,6 +38,10 @@ def agent_log(
     data: dict[str, Any] | None = None,
     run_id: str = "pre-fix",
 ) -> None:
+    flag = os.environ.get("DT_AGENT_DEBUG", "").strip().casefold()
+    if flag not in {"1", "true", "yes", "on"}:
+        return
+
     payload = {
         "sessionId": SESSION_ID,
         "runId": run_id,

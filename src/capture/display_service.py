@@ -44,21 +44,27 @@ class DisplayService:
 
     @classmethod
     def list_monitors(cls) -> tuple[MonitorInfo, ...]:
-        import mss
+        try:
+            import mss
+        except Exception:
+            return ()
 
-        monitors: list[MonitorInfo] = []
-        with mss.mss() as screen:
-            for index, monitor in enumerate(screen.monitors[1:], start=1):
-                monitors.append(
-                    MonitorInfo(
-                        index=index,
-                        left=monitor["left"],
-                        top=monitor["top"],
-                        width=monitor["width"],
-                        height=monitor["height"],
+        try:
+            monitors: list[MonitorInfo] = []
+            with mss.MSS() as screen:
+                for index, monitor in enumerate(screen.monitors[1:], start=1):
+                    monitors.append(
+                        MonitorInfo(
+                            index=index,
+                            left=monitor["left"],
+                            top=monitor["top"],
+                            width=monitor["width"],
+                            height=monitor["height"],
+                        )
                     )
-                )
-        return tuple(monitors)
+            return tuple(monitors)
+        except Exception:
+            return ()
 
     @classmethod
     def primary_monitor(cls) -> MonitorInfo:
