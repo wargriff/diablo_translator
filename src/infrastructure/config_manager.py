@@ -68,6 +68,7 @@ class AppConfig:
 class ConfigManager:
 
     CONFIG_PATH = USER_DATA_DIR / "settings.json"
+    CURRENT_MIGRATION_VERSION = 11
 
     @classmethod
     def load(cls) -> AppConfig:
@@ -161,23 +162,22 @@ class ConfigManager:
             migrated = True
 
         if migrated:
-            with open(cls.CONFIG_PATH, "w", encoding="utf-8") as file:
-                json.dump(
-                    {**asdict(config), "_migration_version": version},
-                    file,
-                    indent=4,
-                    ensure_ascii=False,
-                )
+            cls.save(config, migration_version=version)
 
         return config
 
     @classmethod
-    def save(cls, config: AppConfig) -> None:
+    def save(cls, config: AppConfig, *, migration_version: int | None = None) -> None:
         cls.CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        version = (
+            cls.CURRENT_MIGRATION_VERSION
+            if migration_version is None
+            else migration_version
+        )
 
         with open(cls.CONFIG_PATH, "w", encoding="utf-8") as file:
             json.dump(
-                asdict(config),
+                {**asdict(config), "_migration_version": version},
                 file,
                 indent=4,
                 ensure_ascii=False,

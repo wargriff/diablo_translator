@@ -36,5 +36,5 @@ class CaptureService:
         if self._screen is None:
             import mss
 
-            self._screen = mss.mss()
+            self._screen = mss.MSS()
         return self._screen

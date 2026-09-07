@@ -78,14 +78,25 @@ class MainWindow(QMainWindow):
         self.history_widget = HistoryWidget(self.container)
         self.settings_tab = SettingsTabWidget(self.container)
 
-        self._tabs.add_icon_tab(self.gameplay_widget, "play", "OCR — Chat et traduction live")
+        self._tabs.add_icon_tab(
+            self.gameplay_widget,
+            "play",
+            "OCR — Chat et traduction live",
+            "OCR",
+        )
         self._tabs.add_icon_tab(
             self.launch_tab,
             "launch",
             "Launcher — Diablo III / IV / Immortal",
+            "Launcher",
         )
-        self._tabs.add_icon_tab(self.history_widget, "file", "Fichier — Grimoire et exports")
-        self._tabs.add_icon_tab(self.settings_tab, "settings", "Réglages")
+        self._tabs.add_icon_tab(
+            self.history_widget,
+            "file",
+            "Fichier — Grimoire et exports",
+            "Fichier",
+        )
+        self._tabs.add_icon_tab(self.settings_tab, "settings", "Réglages", "Réglages")
 
         self.launch_tab.refresh_requested.connect(self._on_launch_refresh)
         self.launch_tab.launch_requested.connect(self._on_game_launched)
@@ -314,6 +325,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         self._persist_window_geometry()
         self.gameplay_widget.shutdown()
+        self.container.shutdown()
         super().closeEvent(event)
 
     def select_ocr_tab(self) -> None:

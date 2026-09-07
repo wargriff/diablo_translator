@@ -98,7 +98,10 @@ class GameLauncherService:
     def set_preferred_game(self, game_key: str) -> None:
         if game_key not in _GAME_KEYS:
             return
-        updated = replace(config, preferred_launch_game=game_key)
+        updated = replace(
+            self._config_service.config,
+            preferred_launch_game=game_key,
+        )
         self._config_service.replace(updated)
         ConfigManager.save(updated)
 
