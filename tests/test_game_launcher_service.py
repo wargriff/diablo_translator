@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from src.application.config_service import ConfigService
 from src.application.game_launcher_service import GameLauncherService
-from src.infrastructure.config_manager import AppConfig
+from src.infrastructure.config_manager import AppConfig, ConfigManager
 
 
 class GameLauncherServiceTests(unittest.TestCase):
@@ -73,6 +73,35 @@ class GameLauncherServiceTests(unittest.TestCase):
             popen.assert_called_once()
         finally:
             path.unlink(missing_ok=True)
+
+    def test_set_preferred_game_updates_config(self) -> None:
+        service = self._service(preferred_launch_game="d4")
+        with patch.object(ConfigManager, "save"):
+            service.set_preferred_game("d3")
+
+        self.assertEqual(service.preferred_game_key(), "d3")
+
+    def test_set_preferred_game_ignores_unknown_key(self) -> None:
+        service = self._service(preferred_launch_game="d4")
+        with patch.object(ConfigManager, "save") as save:
+            service.set_preferred_game("unknown")
+
+        self.assertEqual(service.preferred_game_key(), "d4")
+        save.assert_not_called()
+
+    def test_game_status_reuses_provided_detection(self) -> None:
+        service = self._service()
+        detection = MagicMock()
+        detection.active_processes = {"d4": "Diablo IV.exe"}
+
+        with patch(
+            "src.game_detection.GameDetectionService.scan",
+            side_effect=AssertionError("scan should not run"),
+        ):
+            info = service.game_status("d4", detection=detection)
+
+        self.assertTrue(info["running"])
+        self.assertEqual(info["process"], "Diablo IV.exe")
 
 
 if __name__ == "__main__":
