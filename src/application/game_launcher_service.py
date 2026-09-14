@@ -40,20 +40,25 @@ class GameLauncherService:
         self._config_service.replace(updated)
         ConfigManager.save(updated)
 
-    def game_status(self, game_key: str) -> dict[str, str | bool]:
+    def game_status(
+        self,
+        game_key: str,
+        *,
+        detection=None,
+    ) -> dict[str, str | bool]:
         from src.game_detection import GameDetectionService
 
         path = self.resolve_path(game_key)
         valid, error = self.validate_path(game_key, path) if path else (False, "")
-        detection = GameDetectionService().scan()
-        running = game_key in detection.active_processes
+        status = detection if detection is not None else GameDetectionService().scan()
+        running = game_key in status.active_processes
 
         return {
             "path": path,
             "path_valid": valid and bool(path),
             "path_error": error,
             "running": running,
-            "process": detection.active_processes.get(game_key, ""),
+            "process": status.active_processes.get(game_key, ""),
         }
 
     def validate_path(self, game_key: str, path: str | None = None) -> tuple[bool, str]:

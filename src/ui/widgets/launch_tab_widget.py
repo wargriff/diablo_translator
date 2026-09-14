@@ -184,8 +184,12 @@ class LaunchTabWidget(QWidget):
             "ON" if state.snapshot.status.is_any_running else "OFF"
         )
 
+        detection = state.snapshot.status
         for game in SUPPORTED_GAMES:
-            info = self.container.game_launcher.game_status(game.key)
+            info = self.container.game_launcher.game_status(
+                game.key,
+                detection=detection,
+            )
             widgets = self._cards[game.key]
             card = widgets["card"]
             status_label = widgets["status"]

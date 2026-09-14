@@ -731,5 +731,6 @@ class GameplayWidget(QWidget):
         super().keyPressEvent(event)
 
     def shutdown(self) -> None:
+        self._timer.stop()
         self.controller.speech_input.stop()
         self.controller.stop_monitoring()

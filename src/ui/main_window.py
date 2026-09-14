@@ -324,6 +324,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         self._persist_window_geometry()
+        self._game_timer.stop()
         self.gameplay_widget.shutdown()
         self.container.shutdown()
         super().closeEvent(event)

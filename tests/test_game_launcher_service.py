@@ -89,6 +89,20 @@ class GameLauncherServiceTests(unittest.TestCase):
         self.assertEqual(service.preferred_game_key(), "d4")
         save.assert_not_called()
 
+    def test_game_status_reuses_provided_detection(self) -> None:
+        service = self._service()
+        detection = MagicMock()
+        detection.active_processes = {"d4": "Diablo IV.exe"}
+
+        with patch(
+            "src.game_detection.GameDetectionService.scan",
+            side_effect=AssertionError("scan should not run"),
+        ):
+            info = service.game_status("d4", detection=detection)
+
+        self.assertTrue(info["running"])
+        self.assertEqual(info["process"], "Diablo IV.exe")
+
 
 if __name__ == "__main__":
     unittest.main()
